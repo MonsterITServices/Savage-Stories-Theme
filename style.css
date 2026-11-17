@@ -1,0 +1,258 @@
+@charset "UTF-8";
+/*
+Theme Name: Strange Books Custom
+Author: Gemini
+Description: A lightweight, mobile-responsive theme with customizable header, footer, and a grid-based main content area.
+Version: 1.1
+*/
+
+/* Base Styles */
+body {
+    margin: 0;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 20px;
+    background-color: #D3D3D3; 
+    color: #000000;
+}
+
+/* Target default H1 headers without overriding WPBakery inline colors */
+h1 {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 32px;
+    color: #000000;
+}
+
+/* Header text */
+.site-header {
+    background-color: #000000;
+    color: #ffffff;
+    padding: 20px;
+    text-align: center;
+}
+.site-title, .site-title a {
+    margin: 0;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 40px;
+    color: #ffffff;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+.main-navigation {
+    margin-top: 15px;
+}
+.main-navigation ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.main-navigation a {
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 14px;
+    text-transform: uppercase;
+}
+
+/* Main Content (Fixed Grid) */
+.site-content {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+.book-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 30px;
+    justify-items: center;
+}
+.book-grid img {
+    max-width: 100%;
+    height: auto;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* Footer */
+.site-footer,
+.site-footer p,
+.site-footer li,
+.site-footer a,
+.site-footer .widget-title,
+.site-footer .widget {
+    background-color: #000000;
+    color: #ffffff;
+    font-family: "Times New Roman", Times, serif;
+}
+.site-footer {
+    padding: 40px 20px;
+    margin-top: 60px;
+}
+.footer-widgets {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 30px;
+}
+.widget-area {
+    flex: 1;
+    min-width: 250px;
+}
+
+/* --- BULLETPROOF DESKTOP LOCK --- */
+@media (min-width: 769px) {
+    .menu-toggle {
+        display: none !important;
+    }
+    .main-navigation {
+        display: block !important;
+    }
+    .main-navigation ul:not(.sub-menu) {
+        display: flex !important;
+    }
+}
+
+/* --- MOBILE RESPONSIVENESS --- */
+@media (max-width: 768px) {
+    .menu-toggle {
+        display: inline-block !important;
+        background: transparent;
+        border: none;
+        color: #ffffff;
+        font-size: 30px;
+        cursor: pointer;
+        margin-top: 15px;
+        padding: 0;
+    }
+    .main-navigation {
+        display: none; 
+        width: 100%;
+        margin-top: 15px;
+    }
+    .main-navigation.toggled {
+        display: block !important; 
+    }
+    .main-navigation ul {
+        flex-direction: column;
+        gap: 0;
+    }
+    .main-navigation a {
+        display: block;
+        padding: 12px;
+        border-top: 1px solid #333333;
+    }
+    .main-navigation ul.sub-menu {
+        position: relative;
+        box-shadow: none;
+        padding-left: 20px;
+        background-color: #000000;
+    }
+    .footer-widgets {
+        flex-direction: column;
+    }
+}
+
+/* --- HEADER MENU SUPPORT & DROPDOWNS --- */
+.main-navigation li {
+    position: relative;
+}
+.main-navigation ul.sub-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: #111111;
+    min-width: 200px;
+    z-index: 9999;
+    padding: 10px 0;
+    margin: 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+.main-navigation ul li:hover > ul.sub-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.main-navigation ul.sub-menu li {
+    width: 100%;
+}
+.main-navigation ul.sub-menu a {
+    padding: 12px 20px;
+    display: block;
+    text-align: left;
+    font-size: 12px;
+    border-bottom: 1px solid #222;
+}
+.main-navigation ul.sub-menu a:hover {
+    background-color: #333333;
+}
+
+/* --- HEADER PENTAGRAM INDICATOR --- */
+.main-navigation li.menu-item-has-children > a::after {
+    content: "\26E4"; 
+    font-family: Arial, sans-serif;
+    margin-left: 6px;
+    font-size: 14px;
+    display: inline-block;
+    vertical-align: middle;
+    transition: transform 0.3s ease;
+}
+.main-navigation li.menu-item-has-children:hover > a::after {
+    transform: rotate(180deg);
+}
+
+/* --- BOOK STATS & BUTTONS --- */
+.stat-btn {
+    background-color: #000000;
+    color: #ffffff;
+    font-family: Arial, sans-serif;
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+.chapter-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 50px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+.nav-counter {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 14px;
+    font-weight: bold;
+}
+.book-btn {
+    background-color: #000000;
+    color: #ffffff !important;
+    text-decoration: none;
+    padding: 10px 20px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    display: inline-block;
+    transition: background 0.3s;
+}
+.book-btn:hover {
+    background-color: #333333;
+}
+.track-btn {
+    background-color: #8b0000;
+}
+.track-btn:hover {
+    background-color: #a52a2a;
+}
+@media (max-width: 600px) {
+    .chapter-navigation {
+        flex-direction: column;
+        text-align: center;
+    }
+}
