@@ -3,7 +3,7 @@
 Theme Name: Strange Books Custom
 Author: Monster IT Services Ltd
 Description: A lightweight, mobile-responsive theme with customizable header, footer, and a grid-based main content area.
-Version: 1.2
+Version: 1.5
 */
 
 /* Base Styles */
@@ -15,8 +15,8 @@ body {
     color: #000000;
 }
 
-/* Target only standard H1 headers — never override WPBakery Custom Headings */
-h1:not(.vc_custom_heading) {
+/* Target only standard H1 headers — never override WPBakery Custom Headings or inline styles */
+h1:not(.vc_custom_heading):not([style*="color"]) {
     font-family: "Times New Roman", Times, serif;
     font-size: 32px;
     color: #000000;
@@ -196,13 +196,16 @@ h1:not(.vc_custom_heading) {
     content: "\26E4"; 
     font-family: Arial, sans-serif;
     margin-left: 6px;
-    font-size: 14px;
+    margin-bottom: 6px;
+    font-size: 18px;
     display: inline-block;
     vertical-align: middle;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, color 0.25s ease, text-shadow 0.25s ease;
 }
 .main-navigation li.menu-item-has-children:hover > a::after {
     transform: rotate(180deg);
+    color: #cc0000;
+    text-shadow: 0 2px 5px rgba(204, 0, 0, 0.9);
 }
 
 /* --- BOOK STATS & BUTTONS --- */

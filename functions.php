@@ -10,23 +10,80 @@ function strangebooks_setup() {
 add_action( 'after_setup_theme', 'strangebooks_setup' );
 
 function strangebooks_widgets_init() {
-    register_sidebar( array( 'name' => __( 'Footer Area 1 (Left)' ), 'id' => 'footer-1', 'before_widget' => '<div id="%1$s" class="widget %2$s">', 'after_widget' => '</div>', 'before_title' => '<h3 class="widget-title">', 'after_title' => '</h3>' ) );
-    register_sidebar( array( 'name' => __( 'Footer Area 2 (Center)' ), 'id' => 'footer-2', 'before_widget' => '<div id="%1$s" class="widget %2$s">', 'after_widget' => '</div>', 'before_title' => '<h3 class="widget-title">', 'after_title' => '</h3>' ) );
-    register_sidebar( array( 'name' => __( 'Footer Area 3 (Right)' ), 'id' => 'footer-3', 'before_widget' => '<div id="%1$s" class="widget %2$s">', 'after_widget' => '</div>', 'before_title' => '<h3 class="widget-title">', 'after_title' => '</h3>' ) );
+    register_sidebar( array(
+        'name'          => __( 'Footer Area 1 (Left)' ),
+        'id'            => 'footer-1',
+        'before_widget' => '<div id="%1$s" class="widget %2$s">',
+        'after_widget'  => '</div>',
+        'before_title'  => '<h3 class="widget-title">',
+        'after_title'   => '</h3>',
+    ) );
+    register_sidebar( array(
+        'name'          => __( 'Footer Area 2 (Center)' ),
+        'id'            => 'footer-2',
+        'before_widget' => '<div id="%1$s" class="widget %2$s">',
+        'after_widget'  => '</div>',
+        'before_title'  => '<h3 class="widget-title">',
+        'after_title'   => '</h3>',
+    ) );
+    register_sidebar( array(
+        'name'          => __( 'Footer Area 3 (Right)' ),
+        'id'            => 'footer-3',
+        'before_widget' => '<div id="%1$s" class="widget %2$s">',
+        'after_widget'  => '</div>',
+        'before_title'  => '<h3 class="widget-title">',
+        'after_title'   => '</h3>',
+    ) );
 }
 add_action( 'widgets_init', 'strangebooks_widgets_init' );
 
 function strangebooks_scripts() {
-    // Cache-busting version timestamp ensures style.css changes load immediately
-    $css_version = file_exists( get_stylesheet_directory() . '/style.css' ) ? filemtime( get_stylesheet_directory() . '/style.css' ) : '1.2';
+    if ( wp_style_is( 'js_composer_front', 'registered' ) ) {
+        wp_enqueue_style( 'js_composer_front' );
+    }
+    $style_path  = get_stylesheet_directory() . '/style.css';
+    $css_version = file_exists( $style_path ) ? filemtime( $style_path ) : '1.5';
     wp_enqueue_style( 'strangebooks-style', get_stylesheet_uri(), array(), $css_version );
 }
 add_action( 'wp_enqueue_scripts', 'strangebooks_scripts' );
 
+/* --- ALLOW ALL TINYMCE & KSES INLINE BACKGROUND STYLES ON SAVE --- */
+function strangebooks_allow_all_tinymce_styles( $init ) {
+    if ( is_array( $init ) ) {
+        $init['valid_elements']          = '*[*]';
+        $init['extended_valid_elements'] = '*[*]';
+        $init['verify_html']             = false;
+    }
+    return $init;
+}
+add_filter( 'tiny_mce_before_init', 'strangebooks_allow_all_tinymce_styles', 99 );
+
+function strangebooks_allow_kses_background_styles( $styles ) {
+    if ( is_array( $styles ) ) {
+        $styles[] = 'background';
+        $styles[] = 'background-color';
+        $styles[] = 'color';
+        $styles[] = 'padding';
+        $styles[] = 'margin';
+        $styles[] = 'border';
+        $styles[] = 'border-radius';
+        $styles[] = 'display';
+        $styles[] = 'text-align';
+        return array_unique( $styles );
+    }
+    return $styles;
+}
+add_filter( 'safe_style_css', 'strangebooks_allow_kses_background_styles', 99 );
+
 /* --- 1. REGISTER 'BOOKS' CUSTOM POST TYPE --- */
 function strangebooks_register_books_cpt() {
     register_post_type( 'book', array(
-        'labels'      => array( 'name' => 'Books', 'singular_name' => 'Book', 'add_new_item' => 'Add New Book', 'edit_item' => 'Edit Book' ),
+        'labels'      => array(
+            'name'          => 'Books',
+            'singular_name' => 'Book',
+            'add_new_item'  => 'Add New Book',
+            'edit_item'     => 'Edit Book',
+        ),
         'public'      => true,
         'has_archive' => true,
         'menu_icon'   => 'dashicons-book',
@@ -45,7 +102,7 @@ add_action( 'add_meta_boxes', 'strangebooks_add_book_metaboxes' );
 function strangebooks_book_details_html( $post ) {
     wp_nonce_field( 'save_book_details', 'book_details_nonce' );
     $chapters = get_post_meta( $post->ID, '_book_chapters', true );
-    $pages = get_post_meta( $post->ID, '_book_pages', true );
+    $pages    = get_post_meta( $post->ID, '_book_pages', true );
     $tracking = get_post_meta( $post->ID, '_book_tracking', true );
     ?>
     <p><label for="book_chapters"><b>Total Chapters:</b></label><br>
@@ -60,30 +117,51 @@ function strangebooks_book_details_html( $post ) {
 }
 
 function strangebooks_save_book_details( $post_id ) {
-    if ( ! isset( $_POST['book_details_nonce'] ) || ! wp_verify_nonce( $_POST['book_details_nonce'], 'save_book_details' ) ) return;
-    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
-    if ( ! current_user_can( 'edit_post', $post_id ) ) return;
+    if ( ! isset( $_POST['book_details_nonce'] ) || ! wp_verify_nonce( $_POST['book_details_nonce'], 'save_book_details' ) ) {
+        return;
+    }
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        return;
+    }
+    if ( ! current_user_can( 'edit_post', $post_id ) ) {
+        return;
+    }
 
-    if ( isset( $_POST['book_chapters'] ) ) update_post_meta( $post_id, '_book_chapters', sanitize_text_field( $_POST['book_chapters'] ) );
-    if ( isset( $_POST['book_pages'] ) ) update_post_meta( $post_id, '_book_pages', sanitize_text_field( $_POST['book_pages'] ) );
-    if ( isset( $_POST['book_tracking'] ) ) update_post_meta( $post_id, '_book_tracking', esc_url_raw( $_POST['book_tracking'] ) );
+    if ( isset( $_POST['book_chapters'] ) ) {
+        update_post_meta( $post_id, '_book_chapters', sanitize_text_field( $_POST['book_chapters'] ) );
+    }
+    if ( isset( $_POST['book_pages'] ) ) {
+        update_post_meta( $post_id, '_book_pages', sanitize_text_field( $_POST['book_pages'] ) );
+    }
+    if ( isset( $_POST['book_tracking'] ) ) {
+        update_post_meta( $post_id, '_book_tracking', esc_url_raw( $_POST['book_tracking'] ) );
+    }
 }
 add_action( 'save_post_book', 'strangebooks_save_book_details' );
 
 /* --- 3. CREATE [display_books] SHORTCODE --- */
 function strangebooks_books_shortcode( $atts ) {
     $query = new WP_Query( array( 'post_type' => 'book', 'posts_per_page' => -1 ) );
-    if ( ! $query->have_posts() ) return '<p>No books found.</p>';
+    if ( ! $query->have_posts() ) {
+        return '<p>No books found.</p>';
+    }
     
     ob_start();
     echo '<div class="book-grid">';
-    while ( $query->have_posts() ) : $query->the_post();
+    while ( $query->have_posts() ) :
+        $query->the_post();
         $chapters = get_post_meta( get_the_ID(), '_book_chapters', true );
-        $pages = get_post_meta( get_the_ID(), '_book_pages', true );
+        $pages    = get_post_meta( get_the_ID(), '_book_pages', true );
         ?>
         <article class="book-item" style="text-align: center;">
             <a href="<?php the_permalink(); ?>">
-                <?php if ( has_post_thumbnail() ) { the_post_thumbnail( 'large' ); } else { echo '<div style="background:#222;height:300px;display:flex;align-items:center;justify-content:center;color:#fff;">No Cover</div>'; } ?>
+                <?php
+                if ( has_post_thumbnail() ) {
+                    the_post_thumbnail( 'large' );
+                } else {
+                    echo '<div style="background:#222;height:300px;display:flex;align-items:center;justify-content:center;color:#fff;">No Cover</div>';
+                }
+                ?>
             </a>
             <div class="book-stats" style="margin-top: 10px; display: flex; justify-content: center; gap: 5px;">
                 <?php if ( $chapters ) echo '<span class="stat-btn">' . esc_html( $chapters ) . ' Chapters</span>'; ?>
@@ -104,25 +182,26 @@ add_shortcode( 'display_books', 'strangebooks_books_shortcode' );
 function strangebooks_chapter_dropdown_shortcode() {
     global $page, $numpages, $pages;
     
+    $total = ( isset( $numpages ) && $numpages > 0 ) ? $numpages : 1;
+    $curr  = ( isset( $page ) && $page > 0 ) ? $page : 1;
+
     $html = '<select onchange="location = this.value;" style="padding:10px; background:#000; color:#fff; border:1px solid #333; border-radius:3px; cursor:pointer; font-family:Arial, sans-serif; min-width:200px;">';
     
-    for ( $i = 1; $i <= $numpages; $i++ ) {
-        $url = ( $i == 1 ) ? get_permalink() : get_permalink() . $i . '/';
-        $selected = ( $i == $page ) ? 'selected' : '';
+    for ( $i = 1; $i <= $total; $i++ ) {
+        $url      = ( $i === 1 ) ? get_permalink() : trailingslashit( get_permalink() ) . $i . '/';
+        $selected = ( $i === $curr ) ? 'selected' : '';
         
         $chapter_title = 'Chapter ' . $i; 
         
-        if ( isset( $pages[$i-1] ) ) {
-            $raw_content = $pages[$i-1];
+        if ( isset( $pages[ $i - 1 ] ) ) {
+            $raw_content    = $pages[ $i - 1 ];
             $found_headings = array();
 
-            // Collect all WPBakery custom headings on this page
             if ( preg_match_all( '/\[vc_custom_heading[^\]]*text="([^"]+)"/i', $raw_content, $vc_matches ) ) {
                 foreach ( $vc_matches[1] as $match ) {
                     $found_headings[] = sanitize_text_field( $match );
                 }
             }
-            // Collect any standard HTML H1-H3 headings on this page
             if ( preg_match_all( '/<h[1-3][^>]*>(.*?)<\/h[1-3]>/is', $raw_content, $h_matches ) ) {
                 foreach ( $h_matches[1] as $match ) {
                     $found_headings[] = trim( strip_tags( $match ) );
@@ -130,11 +209,7 @@ function strangebooks_chapter_dropdown_shortcode() {
             }
 
             if ( ! empty( $found_headings ) ) {
-                // Default to the first heading found on the page
                 $chapter_title = $found_headings[0];
-                
-                // If there are multiple headings (e.g. Book Title + Chapter 1 Title on Page 1),
-                // prioritize the heading that starts with "Chapter", "Prologue", or "Epilogue"
                 foreach ( $found_headings as $heading ) {
                     if ( preg_match( '/^(chapter|prologue|epilogue|part)\b/i', trim( $heading ) ) ) {
                         $chapter_title = $heading;
@@ -155,18 +230,21 @@ add_shortcode( 'chapter_dropdown', 'strangebooks_chapter_dropdown_shortcode' );
 function strangebooks_chapter_nav_shortcode() {
     global $page, $numpages;
     
+    $total = ( isset( $numpages ) && $numpages > 0 ) ? $numpages : 1;
+    $curr  = ( isset( $page ) && $page > 0 ) ? $page : 1;
+
     $html = '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:40px; border-top:1px solid #ccc; padding-top:20px;">';
     
-    if ( $page > 1 ) {
-        $prev_url = ( $page == 2 ) ? get_permalink() : get_permalink() . ( $page - 1 ) . '/';
-        $html .= '<a href="' . esc_url( $prev_url ) . '" class="book-btn">Prev. Chapter</a>';
+    if ( $curr > 1 ) {
+        $prev_url = ( $curr === 2 ) ? get_permalink() : trailingslashit( get_permalink() ) . ( $curr - 1 ) . '/';
+        $html    .= '<a href="' . esc_url( $prev_url ) . '" class="book-btn">Prev. Chapter</a>';
     } else {
         $html .= '<div></div>'; 
     }
 
-    if ( $page < $numpages ) {
-        $next_url = get_permalink() . ( $page + 1 ) . '/';
-        $html .= '<a href="' . esc_url( $next_url ) . '" class="book-btn">Next Chapter</a>';
+    if ( $curr < $total ) {
+        $next_url = trailingslashit( get_permalink() ) . ( $curr + 1 ) . '/';
+        $html    .= '<a href="' . esc_url( $next_url ) . '" class="book-btn">Next Chapter</a>';
     } else {
         $html .= '<a href="' . esc_url( home_url( '/' ) ) . '" class="book-btn track-btn">Finish Book</a>';
     }
@@ -179,8 +257,8 @@ add_shortcode( 'chapter_nav', 'strangebooks_chapter_nav_shortcode' );
 // 3. Dynamic "Read Now" Button for the Landing Page
 function strangebooks_read_now_shortcode() {
     global $numpages;
-    if ( $numpages > 1 ) {
-        $ch1_url = get_permalink() . '2/';
+    if ( isset( $numpages ) && $numpages > 1 ) {
+        $ch1_url = trailingslashit( get_permalink() ) . '2/';
         return '<div style="text-align:right;"><a href="' . esc_url( $ch1_url ) . '" class="book-btn">Read Now</a></div>';
     }
     return '';
@@ -188,11 +266,10 @@ function strangebooks_read_now_shortcode() {
 add_shortcode( 'read_now_button', 'strangebooks_read_now_shortcode' );
 
 /* --- AUTOMATIC VISUAL PAGE BREAKS (SELF-HEALING) --- */
-add_filter( 'the_posts', 'strangebooks_visual_page_breaks', 10, 2 );
 function strangebooks_visual_page_breaks( $posts, $query ) {
-    if ( ! is_admin() && $query->is_main_query() ) {
+    if ( ! is_admin() && $query->is_main_query() && is_array( $posts ) ) {
         foreach ( $posts as $post ) {
-            if ( $post->post_type === 'book' ) {
+            if ( isset( $post->post_type ) && $post->post_type === 'book' ) {
                 $content = $post->post_content;
 
                 // 1. Remove any leftover manual <!--nextpage--> tags so they don't double-split chapters
@@ -205,7 +282,7 @@ function strangebooks_visual_page_breaks( $posts, $query ) {
                 $content = preg_replace( '/^\s*<!--nextpage-->\s*/i', '', $content );
 
                 // 4. Merge "orphan" pages (rows that had new-chapter or breaks but no heading inside them)
-                $raw_chunks = explode( '<!--nextpage-->', $content );
+                $raw_chunks  = explode( '<!--nextpage-->', $content );
                 $clean_pages = array();
 
                 foreach ( $raw_chunks as $chunk ) {
@@ -214,14 +291,11 @@ function strangebooks_visual_page_breaks( $posts, $query ) {
                         continue;
                     }
 
-                    // Check if this chunk actually contains a chapter heading
                     $has_heading = (
                         preg_match( '/\[vc_custom_heading[^\]]*text="([^"]+)"/i', $chunk_trimmed ) ||
                         preg_match( '/<h[1-3][^>]*>(.*?)<\/h[1-3]>/is', $chunk_trimmed )
                     );
 
-                    // If it's the first page OR it has its own heading, make it a real chapter page.
-                    // Otherwise, it's just a bottom button row or continuation row—merge it into the previous chapter!
                     if ( empty( $clean_pages ) || $has_heading ) {
                         $clean_pages[] = $chunk_trimmed;
                     } else {
@@ -235,15 +309,16 @@ function strangebooks_visual_page_breaks( $posts, $query ) {
     }
     return $posts;
 }
+add_filter( 'the_posts', 'strangebooks_visual_page_breaks', 10, 2 );
 
 /* --- GA4 CUSTOM EVENT & SCROLL TRACKING FOR BOOKS --- */
 function strangebooks_ga4_chapter_tracking() {
     if ( is_singular( 'book' ) ) {
         global $page, $numpages, $post;
         
-        $book_title = esc_js( get_the_title( $post->ID ) );
-        $current_chapter = $page ? $page : 1;
-        $total_chapters = $numpages ? $numpages : 1;
+        $book_title      = isset( $post->ID ) ? esc_js( get_the_title( $post->ID ) ) : '';
+        $current_chapter = ( isset( $page ) && $page > 0 ) ? (int) $page : 1;
+        $total_chapters  = ( isset( $numpages ) && $numpages > 0 ) ? (int) $numpages : 1;
         
         echo "<script>
         window.addEventListener('load', function() {
@@ -257,20 +332,17 @@ function strangebooks_ga4_chapter_tracking() {
                 }
             }
 
-            // 1. Event: Reading a specific chapter
             fireBookEvent('reading_chapter', {
                 'book_title': '{$book_title}',
                 'chapter_number': {$current_chapter}
             });
 
-            // 2. Event: Loaded the final chapter
             if ( {$current_chapter} === {$total_chapters} && {$total_chapters} > 1 ) {
                 fireBookEvent('reached_last_chapter', {
                     'book_title': '{$book_title}'
                 });
             }
 
-            // 3. Event: Clicked Finish Book (Protected with Delay)
             const finishButton = document.querySelector('.track-btn');
             if (finishButton) {
                 finishButton.addEventListener('click', function(e) {
@@ -287,7 +359,6 @@ function strangebooks_ga4_chapter_tracking() {
                 });
             }
 
-            // 4. Scroll Tracking
             let scrolled50 = false;
             let scrolled90 = false;
             
@@ -316,35 +387,38 @@ function strangebooks_ga4_chapter_tracking() {
 }
 add_action( 'wp_footer', 'strangebooks_ga4_chapter_tracking', 20 );
 
-/* --- FORCE WPBAKERY DESIGN OPTIONS (META + DYNAMIC SHORTCODE EXTRACTION) & SIDEBAR MENU --- */
-function strangebooks_vc_precedence_and_sidebar_css() {
+/* --- EXTRACT ALL WPBAKERY CUSTOM CSS FROM META AND CONTENT --- */
+function strangebooks_get_vc_custom_css() {
     global $post;
     $post_id = get_queried_object_id();
     if ( ! $post_id && isset( $post->ID ) ) {
         $post_id = $post->ID;
     }
+    if ( ! $post_id ) {
+        return '';
+    }
 
-    if ( $post_id ) {
-        $vc_css  = get_post_meta( $post_id, '_wpb_shortcodes_custom_css', true );
-        $vc_css .= get_post_meta( $post_id, '_wpb_post_custom_css', true );
-        $vc_css .= get_post_meta( $post_id, 'vc_post_custom_css', true );
+    $vc_css  = (string) get_post_meta( $post_id, '_wpb_shortcodes_custom_css', true );
+    $vc_css .= ' ' . (string) get_post_meta( $post_id, '_wpb_post_custom_css', true );
+    $vc_css .= ' ' . (string) get_post_meta( $post_id, 'vc_post_custom_css', true );
 
-        // Extract all css=".vc_custom_..." rules directly from the post content
-        // Guarantees pasted templates and multi-page books never lose their backgrounds!
-        $content_post = get_post( $post_id );
-        if ( $content_post && ! empty( $content_post->post_content ) ) {
-            if ( preg_match_all( '/css="([^"]+)"/i', $content_post->post_content, $matches ) ) {
-                foreach ( $matches[1] as $css_rule ) {
-                    $vc_css .= ' ' . html_entity_decode( $css_rule, ENT_QUOTES | ENT_XML1, 'UTF-8' );
-                }
+    $raw_content = get_post_field( 'post_content', $post_id, 'raw' );
+    if ( ! empty( $raw_content ) ) {
+        if ( preg_match_all( '/css="([^"]+)"/i', $raw_content, $matches ) ) {
+            foreach ( $matches[1] as $css_rule ) {
+                $vc_css .= ' ' . html_entity_decode( $css_rule, ENT_QUOTES | ENT_XML1, 'UTF-8' );
             }
         }
-        
-        if ( ! empty( $vc_css ) ) {
-            // Ensure WPBakery Design Options always take precedence over theme defaults
-            $vc_css_important = preg_replace( '/(?<!\!important)\s*;/', ' !important;', strip_tags( $vc_css ) );
-            echo '<style type="text/css" id="strangebooks-vc-custom-css">' . $vc_css_important . '</style>';
-        }
+    }
+
+    return trim( $vc_css );
+}
+
+/* --- OUTPUT WPBAKERY CSS & SIDEBAR PENTAGRAM MENU CSS IN HEAD --- */
+function strangebooks_vc_precedence_and_sidebar_css() {
+    $vc_css = strangebooks_get_vc_custom_css();
+    if ( ! empty( $vc_css ) ) {
+        echo '<style type="text/css" id="strangebooks-vc-custom-css-head">' . $vc_css . '</style>';
     }
     ?>
     <style type="text/css" id="strangebooks-sidebar-pentagram-css">
@@ -356,10 +430,19 @@ function strangebooks_vc_precedence_and_sidebar_css() {
             box-sizing: border-box;
         }
 
-        /* Preserve WPBakery inline background and text colors */
-        .site-main *[style*="background-color"],
-        .site-main *[style*="background:"] {
-            padding: 4px 8px;
+        /* Keep inline background colors visible on headings, paragraphs, and spans */
+        .wpb_text_column h1[style*="background"],
+        .wpb_text_column h2[style*="background"],
+        .wpb_text_column h3[style*="background"],
+        .wpb_text_column h4[style*="background"],
+        .wpb_text_column p[style*="background"] {
+            padding: 6px 12px;
+            display: block;
+        }
+
+        .wpb_text_column span[style*="background"] {
+            padding: 4px 10px;
+            display: inline-block;
         }
 
         /* Collapsible WP Custom Menu in Sidebar */
@@ -390,9 +473,9 @@ function strangebooks_vc_precedence_and_sidebar_css() {
             border-bottom: none !important;
         }
 
-        .vc_wp_custommenu li a,
-        .wpb_widgetised_column li a,
-        .site-main .widget_nav_menu li a {
+        .vc_wp_custommenu li > a,
+        .wpb_widgetised_column li > a,
+        .site-main .widget_nav_menu li > a {
             display: flex !important;
             justify-content: space-between !important;
             align-items: center !important;
@@ -404,35 +487,36 @@ function strangebooks_vc_precedence_and_sidebar_css() {
             text-transform: uppercase !important;
             line-height: 1.4 !important;
             transition: background-color 0.2s ease !important;
+            cursor: pointer !important;
         }
 
-        .vc_wp_custommenu li a:hover,
-        .wpb_widgetised_column li a:hover,
-        .site-main .widget_nav_menu li a:hover {
+        .vc_wp_custommenu li > a:hover,
+        .wpb_widgetised_column li > a:hover,
+        .site-main .widget_nav_menu li > a:hover {
             background-color: #222222 !important;
             color: #ffffff !important;
         }
 
-        /* Hide all nested sub-menus by default */
-        .vc_wp_custommenu li > ul,
-        .wpb_widgetised_column li > ul,
-        .site-main .widget_nav_menu li > ul {
+        /* Hide all nested sub-menus by default when parent does NOT have .open */
+        .vc_wp_custommenu li:not(.open) > ul,
+        .wpb_widgetised_column li:not(.open) > ul,
+        .site-main .widget_nav_menu li:not(.open) > ul {
             display: none !important;
-            border: none !important;
-            border-top: 1px solid #222222 !important;
         }
 
-        /* Show sub-menu only when parent has .open class */
+        /* Show sub-menu immediately when parent has .open class */
         .vc_wp_custommenu li.open > ul,
         .wpb_widgetised_column li.open > ul,
         .site-main .widget_nav_menu li.open > ul {
             display: block !important;
+            border: none !important;
+            border-top: 1px solid #222222 !important;
         }
 
         /* Level 2 Indentation */
-        .vc_wp_custommenu ul ul li a,
-        .wpb_widgetised_column ul ul li a,
-        .site-main .widget_nav_menu ul ul li a {
+        .vc_wp_custommenu ul ul li > a,
+        .wpb_widgetised_column ul ul li > a,
+        .site-main .widget_nav_menu ul ul li > a {
             padding-left: 24px !important;
             background-color: #111111 !important;
             color: #e0e0e0 !important;
@@ -441,9 +525,9 @@ function strangebooks_vc_precedence_and_sidebar_css() {
         }
 
         /* Level 3 Indentation */
-        .vc_wp_custommenu ul ul ul li a,
-        .wpb_widgetised_column ul ul ul li a,
-        .site-main .widget_nav_menu ul ul ul li a {
+        .vc_wp_custommenu ul ul ul li > a,
+        .wpb_widgetised_column ul ul ul li > a,
+        .site-main .widget_nav_menu ul ul ul li > a {
             padding-left: 38px !important;
             background-color: #1b1b1b !important;
             color: #cccccc !important;
@@ -451,72 +535,249 @@ function strangebooks_vc_precedence_and_sidebar_css() {
             text-transform: none !important;
         }
 
-        /* Pentagram Indicator (\26E4) matching header menu */
+        /* Pentagram Indicator (\26E4) with Blood Drip Animation */
         .sidebar-menu-toggle {
+            position: relative !important;
             font-family: Arial, sans-serif !important;
-            font-size: 14px !important;
-            margin-left: 8px !important;
+            font-size: 15px !important;
+            margin-left: 10px !important;
             cursor: pointer !important;
-            display: inline-block !important;
-            transition: transform 0.3s ease !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
             color: #ffffff !important;
             line-height: 1 !important;
+            overflow: visible !important;
+            user-select: none !important;
         }
 
-        li.open > a > .sidebar-menu-toggle {
+        .sidebar-pentagram-glyph {
+            display: inline-block !important;
+            transition: transform 0.35s ease, color 0.25s ease, text-shadow 0.25s ease !important;
+        }
+
+        /* When open or dripping: Pentagram turns blood red and rotates */
+        li.open > a .sidebar-pentagram-glyph,
+        .sidebar-menu-toggle.dripping .sidebar-pentagram-glyph {
+            color: #cc0000 !important;
+            text-shadow: 0 0 6px rgba(204, 0, 0, 0.85), 0 2px 4px #660000 !important;
+        }
+
+        li.open > a .sidebar-pentagram-glyph {
             transform: rotate(180deg) !important;
+        }
+
+        /* Animated Blood Drops */
+        .blood-drop {
+            position: absolute !important;
+            top: 75% !important;
+            left: 50% !important;
+            width: 4px !important;
+            height: 6px !important;
+            background: radial-gradient(circle at 35% 35%, #ff1a1a, #8b0000 75%) !important;
+            border-radius: 50% 50% 50% 50% / 65% 65% 35% 35% !important;
+            pointer-events: none !important;
+            opacity: 0;
+            transform: translate(-50%, 0) scale(0.4);
+            z-index: 99999 !important;
+            box-shadow: 0 0 3px rgba(139, 0, 0, 0.9) !important;
+        }
+
+        .blood-drop.drop-2 {
+            left: 32% !important;
+            width: 3px !important;
+            height: 5px !important;
+        }
+
+        .blood-drop.drop-3 {
+            left: 68% !important;
+            width: 3.5px !important;
+            height: 5.5px !important;
+        }
+
+        .sidebar-menu-toggle.dripping .blood-drop.drop-1 {
+            animation: pentagramBloodDrip 1.05s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards !important;
+        }
+
+        .sidebar-menu-toggle.dripping .blood-drop.drop-2 {
+            animation: pentagramBloodDrip 1.15s cubic-bezier(0.55, 0.055, 0.675, 0.19) 0.18s forwards !important;
+        }
+
+        .sidebar-menu-toggle.dripping .blood-drop.drop-3 {
+            animation: pentagramBloodDrip 1.1s cubic-bezier(0.55, 0.055, 0.675, 0.19) 0.34s forwards !important;
+        }
+
+        @keyframes pentagramBloodDrip {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -2px) scale(0.5);
+            }
+            25% {
+                opacity: 1;
+                transform: translate(-50%, 3px) scaleX(0.85) scaleY(1.3);
+            }
+            80% {
+                opacity: 0.95;
+                transform: translate(-50%, 19px) scaleX(0.75) scaleY(1.45);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, 26px) scale(0.2);
+            }
         }
     </style>
     <?php
 }
 add_action( 'wp_head', 'strangebooks_vc_precedence_and_sidebar_css', 999 );
 
-/* --- COLLAPSIBLE SIDEBAR MENU JS CONTROLLER (PENTAGRAM) --- */
+/* --- COLLAPSIBLE SIDEBAR MENU (WITH BLOOD DRIP) & WPBAKERY BACKGROUND ENFORCER --- */
 function strangebooks_collapsible_sidebar_menu() {
+    $vc_css = strangebooks_get_vc_custom_css();
+    if ( ! empty( $vc_css ) ) {
+        echo '<style type="text/css" id="strangebooks-vc-custom-css-footer">' . $vc_css . '</style>';
+    }
     ?>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const menuContainers = document.querySelectorAll('.vc_wp_custommenu, .wpb_widgetised_column, .site-main .widget_nav_menu');
-
-        menuContainers.forEach(function(container) {
-            const allItems = container.querySelectorAll('li');
-
-            allItems.forEach(function(item) {
-                const subMenu = item.querySelector(':scope > ul');
-                const link = item.querySelector(':scope > a');
-
-                if (subMenu && link) {
-                    item.classList.add('has-collapsible-sub');
-
-                    // Remove any old star icons and inject the exact Pentagram (\26E4 / &#9956;)
-                    const oldToggle = link.querySelector('.sidebar-menu-toggle');
-                    if (oldToggle) {
-                        oldToggle.remove();
-                    }
-                    const toggleBtn = document.createElement('span');
-                    toggleBtn.className = 'sidebar-menu-toggle';
-                    toggleBtn.innerHTML = '&#9956;';
-                    link.appendChild(toggleBtn);
-
-                    // Auto-expand if viewing an active child page
-                    if (item.classList.contains('current-menu-parent') || item.classList.contains('current-menu-ancestor')) {
-                        item.classList.add('open');
-                    }
-
-                    // Toggle accordion on click
-                    link.addEventListener('click', function(e) {
-                        const href = link.getAttribute('href');
-                        if (!href || href === '#' || href.startsWith('#') || e.target.classList.contains('sidebar-menu-toggle') || subMenu) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            item.classList.toggle('open');
+    (function() {
+        function applyVcCustomInlineStyles() {
+            const styleTags = document.querySelectorAll('#strangebooks-vc-custom-css-footer, #strangebooks-vc-custom-css-head, style[data-type="vc_shortcodes-custom-css"]');
+            styleTags.forEach(function(tag) {
+                if (!tag.textContent) return;
+                const regex = /\.(vc_custom_\d+)\s*\{([^}]+)\}/g;
+                let match;
+                while ((match = regex.exec(tag.textContent)) !== null) {
+                    const className = match[1];
+                    const rules = match[2].trim();
+                    document.querySelectorAll('.' + className).forEach(function(el) {
+                        const existing = el.getAttribute('style') || '';
+                        if (existing.indexOf(rules) === -1) {
+                            el.setAttribute('style', existing + '; ' + rules);
                         }
                     });
                 }
             });
-        });
-    });
+        }
+
+        function findSubMenu(li) {
+            if (!li || !li.children) return null;
+            for (let i = 0; i < li.children.length; i++) {
+                if (li.children[i].tagName === 'UL') {
+                    return li.children[i];
+                }
+            }
+            return li.querySelector('ul.sub-menu, ul.children, ul');
+        }
+
+        function findDirectLink(li) {
+            if (!li || !li.children) return null;
+            for (let i = 0; i < li.children.length; i++) {
+                if (li.children[i].tagName === 'A') {
+                    return li.children[i];
+                }
+            }
+            return li.querySelector('a');
+        }
+
+        function triggerBloodDrip(toggleBtn) {
+            if (!toggleBtn) return;
+            toggleBtn.classList.remove('dripping');
+            // Force reflow so the animation restarts cleanly on every click
+            void toggleBtn.offsetWidth;
+            toggleBtn.classList.add('dripping');
+            setTimeout(function() {
+                toggleBtn.classList.remove('dripping');
+            }, 1600);
+        }
+
+        function initSidebarMenus() {
+            const menuContainers = document.querySelectorAll('.vc_wp_custommenu, .wpb_widgetised_column, .site-main .widget_nav_menu');
+
+            menuContainers.forEach(function(container) {
+                const allItems = container.querySelectorAll('li');
+
+                allItems.forEach(function(item) {
+                    const subMenu = findSubMenu(item);
+                    const link = findDirectLink(item);
+
+                    if (subMenu && link) {
+                        item.classList.add('has-collapsible-sub');
+
+                        // Inject Pentagram + Blood Drops if not already initialized
+                        let toggleBtn = link.querySelector('.sidebar-menu-toggle');
+                        if (!toggleBtn) {
+                            toggleBtn = document.createElement('span');
+                            toggleBtn.className = 'sidebar-menu-toggle';
+                            toggleBtn.innerHTML = '<span class="sidebar-pentagram-glyph">&#9956;</span>' +
+                                '<span class="blood-drop drop-1"></span>' +
+                                '<span class="blood-drop drop-2"></span>' +
+                                '<span class="blood-drop drop-3"></span>';
+                            link.appendChild(toggleBtn);
+                        }
+
+                        // Auto-expand if viewing an active child page on initial load
+                        if (!item.hasAttribute('data-menu-init')) {
+                            item.setAttribute('data-menu-init', '1');
+                            if (item.classList.contains('current-menu-parent') || item.classList.contains('current-menu-ancestor')) {
+                                item.classList.add('open');
+                                subMenu.style.setProperty('display', 'block', 'important');
+                            } else {
+                                subMenu.style.setProperty('display', 'none', 'important');
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        // Use capture-phase document delegation so nothing can block the click
+        document.addEventListener('click', function(e) {
+            const sidebarContainer = e.target.closest('.vc_wp_custommenu, .wpb_widgetised_column, .site-main .widget_nav_menu');
+            if (!sidebarContainer) return;
+
+            const clickedLink = e.target.closest('a');
+            if (!clickedLink || !sidebarContainer.contains(clickedLink)) return;
+
+            const parentLi = clickedLink.closest('li');
+            if (!parentLi) return;
+
+            const subMenu = findSubMenu(parentLi);
+            if (!subMenu) return; // Leaf link without children -> allow normal navigation
+
+            // This item has a sub-menu: intercept click, toggle dropdown, and drip blood
+            e.preventDefault();
+            e.stopPropagation();
+
+            const isOpen = parentLi.classList.toggle('open');
+            if (isOpen) {
+                subMenu.style.setProperty('display', 'block', 'important');
+            } else {
+                subMenu.style.setProperty('display', 'none', 'important');
+            }
+
+            const toggleBtn = clickedLink.querySelector('.sidebar-menu-toggle');
+            triggerBloodDrip(toggleBtn);
+        }, true);
+
+        function bootAll() {
+            applyVcCustomInlineStyles();
+            initSidebarMenus();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootAll);
+        } else {
+            bootAll();
+        }
+
+        if (window.MutationObserver) {
+            const observer = new MutationObserver(function() {
+                applyVcCustomInlineStyles();
+                initSidebarMenus();
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+    })();
     </script>
     <?php
 }
-add_action( 'wp_footer', 'strangebooks_collapsible_sidebar_menu', 99 );
+add_action( 'wp_footer', 'strangebooks_collapsible_sidebar_menu', 999 );
