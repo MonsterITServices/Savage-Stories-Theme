@@ -18,7 +18,7 @@ add_action( 'widgets_init', 'strangebooks_widgets_init' );
 
 function strangebooks_scripts() {
     // Cache-busting version timestamp ensures style.css changes load immediately
-    $css_version = file_exists( get_stylesheet_directory() . '/style.css' ) ? filemtime( get_stylesheet_directory() . '/style.css' ) : '1.1';
+    $css_version = file_exists( get_stylesheet_directory() . '/style.css' ) ? filemtime( get_stylesheet_directory() . '/style.css' ) : '1.2';
     wp_enqueue_style( 'strangebooks-style', get_stylesheet_uri(), array(), $css_version );
 }
 add_action( 'wp_enqueue_scripts', 'strangebooks_scripts' );
@@ -316,13 +316,29 @@ function strangebooks_ga4_chapter_tracking() {
 }
 add_action( 'wp_footer', 'strangebooks_ga4_chapter_tracking', 20 );
 
-/* --- FORCE WPBAKERY DESIGN OPTIONS & COLLAPSIBLE PENTAGRAM SIDEBAR MENU --- */
+/* --- FORCE WPBAKERY DESIGN OPTIONS (META + DYNAMIC SHORTCODE EXTRACTION) & SIDEBAR MENU --- */
 function strangebooks_vc_precedence_and_sidebar_css() {
+    global $post;
     $post_id = get_queried_object_id();
+    if ( ! $post_id && isset( $post->ID ) ) {
+        $post_id = $post->ID;
+    }
+
     if ( $post_id ) {
         $vc_css  = get_post_meta( $post_id, '_wpb_shortcodes_custom_css', true );
         $vc_css .= get_post_meta( $post_id, '_wpb_post_custom_css', true );
         $vc_css .= get_post_meta( $post_id, 'vc_post_custom_css', true );
+
+        // Extract all css=".vc_custom_..." rules directly from the post content
+        // Guarantees pasted templates and multi-page books never lose their backgrounds!
+        $content_post = get_post( $post_id );
+        if ( $content_post && ! empty( $content_post->post_content ) ) {
+            if ( preg_match_all( '/css="([^"]+)"/i', $content_post->post_content, $matches ) ) {
+                foreach ( $matches[1] as $css_rule ) {
+                    $vc_css .= ' ' . html_entity_decode( $css_rule, ENT_QUOTES | ENT_XML1, 'UTF-8' );
+                }
+            }
+        }
         
         if ( ! empty( $vc_css ) ) {
             // Ensure WPBakery Design Options always take precedence over theme defaults
@@ -332,6 +348,14 @@ function strangebooks_vc_precedence_and_sidebar_css() {
     }
     ?>
     <style type="text/css" id="strangebooks-sidebar-pentagram-css">
+        /* Allow WPBakery Custom Headings & Text Blocks full styling control */
+        .vc_custom_heading,
+        .wpb_text_column,
+        .vc_row,
+        .vc_column_container > .vc_column-inner {
+            box-sizing: border-box;
+        }
+
         /* Preserve WPBakery inline background and text colors */
         .site-main *[style*="background-color"],
         .site-main *[style*="background:"] {

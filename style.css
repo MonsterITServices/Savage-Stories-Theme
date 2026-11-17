@@ -1,9 +1,9 @@
 @charset "UTF-8";
 /*
 Theme Name: Strange Books Custom
-Author: Gemini
+Author: Monster IT Services Ltd
 Description: A lightweight, mobile-responsive theme with customizable header, footer, and a grid-based main content area.
-Version: 1.1
+Version: 1.2
 */
 
 /* Base Styles */
@@ -15,8 +15,8 @@ body {
     color: #000000;
 }
 
-/* Target default H1 headers without overriding WPBakery inline colors */
-h1 {
+/* Target only standard H1 headers — never override WPBakery Custom Headings */
+h1:not(.vc_custom_heading) {
     font-family: "Times New Roman", Times, serif;
     font-size: 32px;
     color: #000000;
