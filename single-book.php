@@ -16,6 +16,17 @@
                 <button onclick="window.scrollTo({top: 0, behavior: 'smooth'});" class="book-btn back-to-top">&#8679; Back to Top</button>
             </div>
 
+            <?php
+            // Show comments on the final chapter (or if the book is a single page)
+            global $page, $numpages;
+            $curr_page   = ( isset( $page ) && $page > 0 ) ? (int) $page : 1;
+            $total_pages = ( isset( $numpages ) && $numpages > 0 ) ? (int) $numpages : 1;
+
+            if ( $curr_page === $total_pages && ( comments_open() || get_comments_number() ) ) :
+                comments_template();
+            endif;
+            ?>
+
         <?php endwhile; ?>
     </main>
 </div>

@@ -42,7 +42,7 @@ function strangebooks_scripts() {
         wp_enqueue_style( 'js_composer_front' );
     }
     $style_path  = get_stylesheet_directory() . '/style.css';
-    $css_version = file_exists( $style_path ) ? filemtime( $style_path ) : '2.0';
+    $css_version = file_exists( $style_path ) ? filemtime( $style_path ) : '2.1';
     wp_enqueue_style( 'strangebooks-style', get_stylesheet_uri(), array(), $css_version );
 }
 add_action( 'wp_enqueue_scripts', 'strangebooks_scripts' );
@@ -176,14 +176,70 @@ function strangebooks_books_shortcode( $atts ) {
 }
 add_shortcode( 'display_books', 'strangebooks_books_shortcode' );
 
+/* --- HELPER: DETECT CHAPTER HEADINGS IN ANY FORMAT (VC HEADING, H1-H6, OR BOLD TEXT) --- */
+function strangebooks_extract_chapter_title_from_chunk( $raw_content, $fallback_number = 1 ) {
+    $found_headings = array();
+
+    // 1. WPBakery [vc_custom_heading text="..."]
+    if ( preg_match_all( '/\[vc_custom_heading[^\]]*text="([^"]+)"/i', $raw_content, $vc_matches ) ) {
+        foreach ( $vc_matches[1] as $match ) {
+            $cleaned = trim( sanitize_text_field( html_entity_decode( $match, ENT_QUOTES | ENT_XML1, 'UTF-8' ) ) );
+            if ( ! empty( $cleaned ) ) {
+                $found_headings[] = $cleaned;
+            }
+        }
+    }
+
+    // 2. Standard HTML <h1-h6> tags
+    if ( preg_match_all( '/<h[1-6][^>]*>(.*?)<\/h[1-6]>/is', $raw_content, $h_matches ) ) {
+        foreach ( $h_matches[1] as $match ) {
+            $cleaned = trim( wp_strip_all_tags( html_entity_decode( $match, ENT_QUOTES | ENT_XML1, 'UTF-8' ) ) );
+            if ( ! empty( $cleaned ) ) {
+                $found_headings[] = $cleaned;
+            }
+        }
+    }
+
+    // 3. Bold/Strong chapter lines inside [vc_column_text] (e.g. "Chapter 1: The Beginning")
+    if ( preg_match_all( '/<(?:strong|b)[^>]*>\s*((?:chapter|prologue|epilogue|part)\s+[^<]{1,90})<\/(?:strong|b)>/i', $raw_content, $b_matches ) ) {
+        foreach ( $b_matches[1] as $match ) {
+            $cleaned = trim( wp_strip_all_tags( html_entity_decode( $match, ENT_QUOTES | ENT_XML1, 'UTF-8' ) ) );
+            if ( ! empty( $cleaned ) ) {
+                $found_headings[] = $cleaned;
+            }
+        }
+    }
+
+    // 4. Plain-text paragraph starting directly with "Chapter X: ..."
+    if ( preg_match_all( '/(?:<p[^>]*>|\])\s*((?:chapter|prologue|epilogue)\s+\d+\s*[:\-–—]\s*[^<\[\r\n]{1,80})/i', $raw_content, $p_matches ) ) {
+        foreach ( $p_matches[1] as $match ) {
+            $cleaned = trim( wp_strip_all_tags( html_entity_decode( $match, ENT_QUOTES | ENT_XML1, 'UTF-8' ) ) );
+            if ( ! empty( $cleaned ) ) {
+                $found_headings[] = $cleaned;
+            }
+        }
+    }
+
+    if ( ! empty( $found_headings ) ) {
+        foreach ( $found_headings as $heading ) {
+            if ( preg_match( '/^(chapter|prologue|epilogue|part)\b/i', $heading ) ) {
+                return $heading;
+            }
+        }
+        return $found_headings[0];
+    }
+
+    return 'Chapter ' . $fallback_number;
+}
+
 /* --- WPBAKERY DYNAMIC BUTTON SHORTCODES --- */
 
 // 1. Chapter Dropdown (Smart Auto-Titles, Prioritizes "Chapter X" Headings)
 function strangebooks_chapter_dropdown_shortcode() {
     global $page, $numpages, $pages;
     
-    $total = ( isset( $numpages ) && $numpages > 0 ) ? $numpages : 1;
-    $curr  = ( isset( $page ) && $page > 0 ) ? $page : 1;
+    $total = ( isset( $numpages ) && $numpages > 0 ) ? (int) $numpages : 1;
+    $curr  = ( isset( $page ) && $page > 0 ) ? (int) $page : 1;
 
     $html = '<select onchange="location = this.value;" style="padding:10px; background:#000; color:#fff; border:1px solid #333; border-radius:3px; cursor:pointer; font-family:Arial, sans-serif; min-width:200px;">';
     
@@ -191,33 +247,8 @@ function strangebooks_chapter_dropdown_shortcode() {
         $url      = ( $i === 1 ) ? get_permalink() : trailingslashit( get_permalink() ) . $i . '/';
         $selected = ( $i === $curr ) ? 'selected' : '';
         
-        $chapter_title = 'Chapter ' . $i; 
-        
-        if ( isset( $pages[ $i - 1 ] ) ) {
-            $raw_content    = $pages[ $i - 1 ];
-            $found_headings = array();
-
-            if ( preg_match_all( '/\[vc_custom_heading[^\]]*text="([^"]+)"/i', $raw_content, $vc_matches ) ) {
-                foreach ( $vc_matches[1] as $match ) {
-                    $found_headings[] = sanitize_text_field( $match );
-                }
-            }
-            if ( preg_match_all( '/<h[1-3][^>]*>(.*?)<\/h[1-3]>/is', $raw_content, $h_matches ) ) {
-                foreach ( $h_matches[1] as $match ) {
-                    $found_headings[] = trim( strip_tags( $match ) );
-                }
-            }
-
-            if ( ! empty( $found_headings ) ) {
-                $chapter_title = $found_headings[0];
-                foreach ( $found_headings as $heading ) {
-                    if ( preg_match( '/^(chapter|prologue|epilogue|part)\b/i', trim( $heading ) ) ) {
-                        $chapter_title = $heading;
-                        break;
-                    }
-                }
-            }
-        }
+        $raw_content   = isset( $pages[ $i - 1 ] ) ? $pages[ $i - 1 ] : '';
+        $chapter_title = strangebooks_extract_chapter_title_from_chunk( $raw_content, $i );
         
         $html .= '<option value="' . esc_url( $url ) . '" ' . $selected . '>' . esc_html( $chapter_title ) . '</option>';
     }
@@ -230,8 +261,8 @@ add_shortcode( 'chapter_dropdown', 'strangebooks_chapter_dropdown_shortcode' );
 function strangebooks_chapter_nav_shortcode() {
     global $page, $numpages;
     
-    $total = ( isset( $numpages ) && $numpages > 0 ) ? $numpages : 1;
-    $curr  = ( isset( $page ) && $page > 0 ) ? $page : 1;
+    $total = ( isset( $numpages ) && $numpages > 0 ) ? (int) $numpages : 1;
+    $curr  = ( isset( $page ) && $page > 0 ) ? (int) $page : 1;
 
     $html = '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:40px; border-top:1px solid #ccc; padding-top:20px;">';
     
@@ -265,40 +296,76 @@ function strangebooks_read_now_shortcode() {
 }
 add_shortcode( 'read_now_button', 'strangebooks_read_now_shortcode' );
 
-/* --- AUTOMATIC VISUAL PAGE BREAKS (SELF-HEALING) --- */
+/* --- AUTOMATIC VISUAL PAGE BREAKS (SUPPORTS 'new-chapter', '<!--nextpage-->', AND REPEATED CHAPTER ROWS) --- */
 function strangebooks_visual_page_breaks( $posts, $query ) {
-    if ( ! is_admin() && $query->is_main_query() && is_array( $posts ) ) {
-        foreach ( $posts as $post ) {
-            if ( isset( $post->post_type ) && $post->post_type === 'book' ) {
-                $content = $post->post_content;
+    // Do not split chapters inside the backend admin or active WPBakery Frontend Editor iframe
+    if ( is_admin() ) {
+        return $posts;
+    }
+    if ( isset( $_GET['vc_editable'] ) || isset( $_GET['vc_action'] ) ) {
+        return $posts;
+    }
+    if ( ! is_array( $posts ) ) {
+        return $posts;
+    }
 
-                $content = str_replace( '<!--nextpage-->', '', $content );
-                $content = preg_replace( '/(\[vc_row\b[^\]]*new-chapter[^\]]*\])/i', '<!--nextpage-->' . "\n" . '$1', $content );
-                $content = preg_replace( '/^\s*<!--nextpage-->\s*/i', '', $content );
+    foreach ( $posts as $post ) {
+        if ( isset( $post->post_type ) && $post->post_type === 'book' && ! empty( $post->post_content ) ) {
+            // Avoid double-processing if already paginated in this request
+            if ( isset( $post->_strangebooks_paginated ) ) {
+                continue;
+            }
+            $post->_strangebooks_paginated = true;
 
-                $raw_chunks  = explode( '<!--nextpage-->', $content );
-                $clean_pages = array();
+            $content = $post->post_content;
 
-                foreach ( $raw_chunks as $chunk ) {
-                    $chunk_trimmed = trim( $chunk );
-                    if ( empty( $chunk_trimmed ) ) {
-                        continue;
-                    }
+            // 1. Normalize any existing manual <!--nextpage--> tags
+            // and inject <!--nextpage--> before any [vc_row] that has the 'new-chapter' class
+            $content = preg_replace( '/(\[vc_row\b[^\]]*new-chapter[^\]]*\])/i', '<!--nextpage-->' . "\n" . '$1', $content );
 
-                    $has_heading = (
-                        preg_match( '/\[vc_custom_heading[^\]]*text="([^"]+)"/i', $chunk_trimmed ) ||
-                        preg_match( '/<h[1-3][^>]*>(.*?)<\/h[1-3]>/is', $chunk_trimmed )
-                    );
+            // 2. Fallback: If the book has multiple [chapter_dropdown] blocks (one per chapter block, as in Reality 17)
+            // but the author forgot to add 'new-chapter' to the row class, split automatically before each top-level [vc_row] that starts a new chapter block!
+            if ( substr_count( $content, '[chapter_dropdown' ) > 1 && substr_count( $content, '<!--nextpage-->' ) === 0 ) {
+                $content = preg_replace( '/(\[vc_row\b[^\]]*\](?:(?!\[\/vc_row\]).)*?\[chapter_dropdown\b)/is', '<!--nextpage-->' . "\n" . '$1', $content );
+            }
 
-                    if ( empty( $clean_pages ) || $has_heading ) {
-                        $clean_pages[] = $chunk_trimmed;
-                    } else {
-                        $clean_pages[ count( $clean_pages ) - 1 ] .= "\n" . $chunk_trimmed;
-                    }
+            // 3. Fallback: Also split after any [chapter_nav] row if another [vc_row] immediately follows it and no breaks exist yet
+            if ( substr_count( $content, '[chapter_nav' ) > 1 ) {
+                $content = preg_replace( '/(\[chapter_nav\b[^\]]*\]\s*\[\/vc_column_text\]\s*\[\/vc_column\]\s*\[\/vc_row\])\s*(\[vc_row\b)/is', '$1' . "\n<!--nextpage-->\n" . '$2', $content );
+            }
+
+            // 4. Clean up duplicate or leading <!--nextpage--> tags
+            $content = preg_replace( '/(?:<!--nextpage-->\s*){2,}/i', "<!--nextpage-->\n", $content );
+            $content = preg_replace( '/^\s*<!--nextpage-->\s*/i', '', $content );
+
+            // 5. Self-healing merge: Only merge true "orphan" rows (like a bottom button row that got split off by mistake)
+            $raw_chunks  = explode( '<!--nextpage-->', $content );
+            $clean_pages = array();
+
+            foreach ( $raw_chunks as $chunk ) {
+                $chunk_trimmed = trim( $chunk );
+                if ( empty( $chunk_trimmed ) ) {
+                    continue;
                 }
 
-                $post->post_content = implode( "\n<!--nextpage-->\n", $clean_pages );
+                // A chunk is a valid standalone chapter page if it has a heading, a chapter dropdown, or long story text (> 400 chars)
+                $has_chapter_marker = (
+                    preg_match( '/\[vc_custom_heading[^\]]*text="([^"]+)"/i', $chunk_trimmed ) ||
+                    preg_match( '/<h[1-6][^>]*>(.*?)<\/h[1-6]>/is', $chunk_trimmed ) ||
+                    preg_match( '/\[chapter_dropdown\b/i', $chunk_trimmed ) ||
+                    preg_match( '/(?:chapter|prologue|epilogue)\s+\d+/i', $chunk_trimmed ) ||
+                    strlen( wp_strip_all_tags( $chunk_trimmed ) ) > 400
+                );
+
+                if ( empty( $clean_pages ) || $has_chapter_marker ) {
+                    $clean_pages[] = $chunk_trimmed;
+                } else {
+                    // Merge tiny orphan row (like a standalone button row) into the previous chapter
+                    $clean_pages[ count( $clean_pages ) - 1 ] .= "\n" . $chunk_trimmed;
+                }
             }
+
+            $post->post_content = implode( "\n<!--nextpage-->\n", $clean_pages );
         }
     }
     return $posts;

@@ -12,10 +12,9 @@
                     <h1 style="text-align: center; margin-bottom: 30px; font-family: 'Times New Roman', Times, serif; font-size: 28px; color: #000; text-transform: uppercase;">
                         <?php the_title(); ?>
                     </h1>
-                    
                 <?php endif; ?>
 
-                <!-- 3. Output the existing raw content -->
+                <!-- 2. Output the existing raw content -->
                 <div class="entry-content" style="font-size: 14px; line-height: 1.8; color: #000;">
                     <?php 
                     // This pulls your legacy text, or WPBakery layouts if used on future posts
@@ -24,6 +23,13 @@
                 </div>
                 
             </article>
+
+            <?php
+            // 3. Load Comments if open or if there is at least one comment
+            if ( comments_open() || get_comments_number() ) :
+                comments_template();
+            endif;
+            ?>
 
         <?php endwhile; ?>
     </main>
