@@ -13,12 +13,6 @@
                         <?php the_title(); ?>
                     </h1>
                     
-                    <!-- 2. Auto-generate the Featured Image (if the post has one) -->
-                    <?php if ( has_post_thumbnail() ) : ?>
-                        <div style="text-align: center; margin-bottom: 30px;">
-                            <?php the_post_thumbnail( 'large', array( 'style' => 'max-width: 100%; height: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.3);' ) ); ?>
-                        </div>
-                    <?php endif; ?>
                 <?php endif; ?>
 
                 <!-- 3. Output the existing raw content -->

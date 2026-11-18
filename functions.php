@@ -42,7 +42,7 @@ function strangebooks_scripts() {
         wp_enqueue_style( 'js_composer_front' );
     }
     $style_path  = get_stylesheet_directory() . '/style.css';
-    $css_version = file_exists( $style_path ) ? filemtime( $style_path ) : '1.5';
+    $css_version = file_exists( $style_path ) ? filemtime( $style_path ) : '2.0';
     wp_enqueue_style( 'strangebooks-style', get_stylesheet_uri(), array(), $css_version );
 }
 add_action( 'wp_enqueue_scripts', 'strangebooks_scripts' );
@@ -272,16 +272,10 @@ function strangebooks_visual_page_breaks( $posts, $query ) {
             if ( isset( $post->post_type ) && $post->post_type === 'book' ) {
                 $content = $post->post_content;
 
-                // 1. Remove any leftover manual <!--nextpage--> tags so they don't double-split chapters
                 $content = str_replace( '<!--nextpage-->', '', $content );
-
-                // 2. Inject <!--nextpage--> before any row with the 'new-chapter' class
                 $content = preg_replace( '/(\[vc_row\b[^\]]*new-chapter[^\]]*\])/i', '<!--nextpage-->' . "\n" . '$1', $content );
-
-                // 3. Remove any accidental page break at the very start of the book (before Chapter 1)
                 $content = preg_replace( '/^\s*<!--nextpage-->\s*/i', '', $content );
 
-                // 4. Merge "orphan" pages (rows that had new-chapter or breaks but no heading inside them)
                 $raw_chunks  = explode( '<!--nextpage-->', $content );
                 $clean_pages = array();
 
@@ -414,7 +408,7 @@ function strangebooks_get_vc_custom_css() {
     return trim( $vc_css );
 }
 
-/* --- OUTPUT WPBAKERY CSS & SIDEBAR PENTAGRAM MENU CSS IN HEAD --- */
+/* --- OUTPUT WPBAKERY CSS & UNIFIED HEADER + SIDEBAR MENU CSS IN HEAD --- */
 function strangebooks_vc_precedence_and_sidebar_css() {
     $vc_css = strangebooks_get_vc_custom_css();
     if ( ! empty( $vc_css ) ) {
@@ -443,6 +437,24 @@ function strangebooks_vc_precedence_and_sidebar_css() {
         .wpb_text_column span[style*="background"] {
             padding: 4px 10px;
             display: inline-block;
+        }
+
+        /* Disable static ::after icon on header menu so JS particle engine takes over cleanly */
+        .main-navigation li.menu-item-has-children > a::after {
+            content: none !important;
+            display: none !important;
+        }
+
+        .main-navigation a {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .main-navigation ul.sub-menu a {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
         }
 
         /* Collapsible WP Custom Menu in Sidebar */
@@ -479,7 +491,7 @@ function strangebooks_vc_precedence_and_sidebar_css() {
             display: flex !important;
             justify-content: space-between !important;
             align-items: center !important;
-            padding: 10px 14px !important;
+            padding: 6px 10px 6px 14px !important;
             color: #ffffff !important;
             background-color: #000000 !important;
             text-decoration: none !important;
@@ -497,7 +509,7 @@ function strangebooks_vc_precedence_and_sidebar_css() {
             color: #ffffff !important;
         }
 
-        /* Hide all nested sub-menus by default when parent does NOT have .open */
+        /* Hide all nested sub-menus in sidebar by default when parent does NOT have .open */
         .vc_wp_custommenu li:not(.open) > ul,
         .wpb_widgetised_column li:not(.open) > ul,
         .site-main .widget_nav_menu li:not(.open) > ul {
@@ -535,12 +547,13 @@ function strangebooks_vc_precedence_and_sidebar_css() {
             text-transform: none !important;
         }
 
-        /* Pentagram Indicator (\26E4) with Blood Drip Animation */
+        /* --- TOGGLE BUTTON & 25-ICON SYSTEM (HEADER + SIDEBAR) --- */
         .sidebar-menu-toggle {
             position: relative !important;
-            font-family: Arial, sans-serif !important;
+            font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Color Emoji", Arial, sans-serif !important;
             font-size: 15px !important;
-            margin-left: 10px !important;
+            margin-left: 6px !important;
+            padding: 3px 8px !important;
             cursor: pointer !important;
             display: inline-flex !important;
             align-items: center !important;
@@ -549,62 +562,273 @@ function strangebooks_vc_precedence_and_sidebar_css() {
             line-height: 1 !important;
             overflow: visible !important;
             user-select: none !important;
+            border-radius: 3px !important;
+            transition: background-color 0.2s ease !important;
         }
 
-        .sidebar-pentagram-glyph {
+        .main-navigation > div > ul > li > a > .sidebar-menu-toggle,
+        .main-navigation > ul > li > a > .sidebar-menu-toggle {
+            padding: 2px 5px !important;
+            margin-left: 5px !important;
+        }
+
+        .sidebar-menu-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.12) !important;
+        }
+
+        .sidebar-icon-glyph {
             display: inline-block !important;
             transition: transform 0.35s ease, color 0.25s ease, text-shadow 0.25s ease !important;
         }
 
-        /* When open or dripping: Pentagram turns blood red and rotates */
-        li.open > a .sidebar-pentagram-glyph,
-        .sidebar-menu-toggle.dripping .sidebar-pentagram-glyph {
+        /* 1. PENTAGRAM */
+        li.open > a .sidebar-menu-toggle[data-icon-type="pentagram"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="pentagram"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="pentagram"].animating .sidebar-icon-glyph {
             color: #cc0000 !important;
             text-shadow: 0 0 6px rgba(204, 0, 0, 0.85), 0 2px 4px #660000 !important;
-        }
-
-        li.open > a .sidebar-pentagram-glyph {
             transform: rotate(180deg) !important;
         }
 
-        /* Animated Blood Drops */
-        .blood-drop {
+        /* 2. HEART */
+        li.open > a .sidebar-menu-toggle[data-icon-type="heart"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="heart"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="heart"].animating .sidebar-icon-glyph {
+            color: #ff2a6d !important;
+            text-shadow: 0 0 8px rgba(255, 42, 109, 0.9), 0 0 14px #ff0055 !important;
+            transform: scale(1.25) !important;
+        }
+
+        /* 3. SPARKLES / CROWN / BOOK / QUILL / LEMON / PAW */
+        li.open > a .sidebar-menu-toggle[data-icon-type="sparkles"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="sparkles"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="sparkles"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="crown"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="crown"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="crown"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="book"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="book"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="book"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="quill"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="quill"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="quill"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="lemon"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="lemon"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="lemon"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="paw"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="paw"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="paw"].animating .sidebar-icon-glyph {
+            color: #ffd700 !important;
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.95), 0 0 14px #ffae00 !important;
+            transform: scale(1.22) !important;
+        }
+
+        /* 4. SKULL */
+        li.open > a .sidebar-menu-toggle[data-icon-type="skull"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="skull"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="skull"].animating .sidebar-icon-glyph {
+            color: #39ff14 !important;
+            text-shadow: 0 0 8px rgba(57, 255, 20, 0.9), 0 0 14px #00aa00 !important;
+            transform: scale(1.2) !important;
+        }
+
+        /* 5. SCI-FI / SUPERHERO / MYTHOLOGY / WEREWOLF */
+        li.open > a .sidebar-menu-toggle[data-icon-type="scifi"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="scifi"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="scifi"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="superhero"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="superhero"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="superhero"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="mythology"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="mythology"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="mythology"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="werewolf"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="werewolf"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="werewolf"].animating .sidebar-icon-glyph {
+            color: #00f0ff !important;
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.95), 0 0 16px #facc15 !important;
+            transform: scale(1.25) !important;
+        }
+
+        /* 6. CRIME / DAGGER / VAMPIRE / YOUTUBE / ANGER */
+        li.open > a .sidebar-menu-toggle[data-icon-type="crime"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="crime"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="crime"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="dagger"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="dagger"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="dagger"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="vampire"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="vampire"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="vampire"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="youtube"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="youtube"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="youtube"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="anger"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="anger"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="anger"].animating .sidebar-icon-glyph {
+            color: #ff1a1a !important;
+            text-shadow: 0 0 8px rgba(255, 26, 26, 0.95), 0 0 14px #8b0000 !important;
+            transform: scale(1.25) !important;
+        }
+
+        /* 7. MYSTERY / COMEDY / DYSTOPIAN / FLAME */
+        li.open > a .sidebar-menu-toggle[data-icon-type="mystery"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="mystery"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="mystery"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="comedy"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="comedy"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="comedy"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="dystopian"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="dystopian"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="dystopian"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="flame"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="flame"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="flame"].animating .sidebar-icon-glyph {
+            color: #ff9900 !important;
+            text-shadow: 0 0 8px rgba(255, 153, 0, 0.95), 0 0 14px #ff0000 !important;
+            transform: scale(1.22) !important;
+        }
+
+        /* 8. PSYCHOLOGICAL / MOON / MANGA */
+        li.open > a .sidebar-menu-toggle[data-icon-type="psych"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="psych"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="psych"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="moon"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="moon"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="moon"].animating .sidebar-icon-glyph,
+        li.open > a .sidebar-menu-toggle[data-icon-type="manga"] .sidebar-icon-glyph,
+        .main-navigation li:hover > a .sidebar-menu-toggle[data-icon-type="manga"] .sidebar-icon-glyph,
+        .sidebar-menu-toggle[data-icon-type="manga"].animating .sidebar-icon-glyph {
+            color: #d946ef !important;
+            text-shadow: 0 0 9px rgba(217, 70, 239, 0.95), 0 0 15px #38bdf8 !important;
+            transform: scale(1.25) !important;
+        }
+
+        /* --- PARTICLE EFFECTS --- */
+        .menu-particle {
             position: absolute !important;
+            pointer-events: none !important;
+            opacity: 0;
+            z-index: 99999 !important;
+            line-height: 1 !important;
+        }
+
+        /* Group A: Dripping Blood Drops (Pentagram, Dagger, Crime) */
+        .sidebar-menu-toggle[data-icon-type="pentagram"] .menu-particle,
+        .sidebar-menu-toggle[data-icon-type="dagger"] .menu-particle,
+        .sidebar-menu-toggle[data-icon-type="crime"] .menu-particle {
             top: 75% !important;
             left: 50% !important;
             width: 4px !important;
             height: 6px !important;
             background: radial-gradient(circle at 35% 35%, #ff1a1a, #8b0000 75%) !important;
             border-radius: 50% 50% 50% 50% / 65% 65% 35% 35% !important;
-            pointer-events: none !important;
-            opacity: 0;
-            transform: translate(-50%, 0) scale(0.4);
-            z-index: 99999 !important;
             box-shadow: 0 0 3px rgba(139, 0, 0, 0.9) !important;
         }
-
-        .blood-drop.drop-2 {
-            left: 32% !important;
+        .sidebar-menu-toggle[data-icon-type="pentagram"] .menu-particle.p-2,
+        .sidebar-menu-toggle[data-icon-type="dagger"] .menu-particle.p-2,
+        .sidebar-menu-toggle[data-icon-type="crime"] .menu-particle.p-2 {
+            left: 30% !important;
             width: 3px !important;
             height: 5px !important;
         }
-
-        .blood-drop.drop-3 {
-            left: 68% !important;
+        .sidebar-menu-toggle[data-icon-type="pentagram"] .menu-particle.p-3,
+        .sidebar-menu-toggle[data-icon-type="dagger"] .menu-particle.p-3,
+        .sidebar-menu-toggle[data-icon-type="crime"] .menu-particle.p-3 {
+            left: 70% !important;
             width: 3.5px !important;
             height: 5.5px !important;
         }
-
-        .sidebar-menu-toggle.dripping .blood-drop.drop-1 {
+        .sidebar-menu-toggle[data-icon-type="pentagram"].animating .menu-particle.p-1,
+        .sidebar-menu-toggle[data-icon-type="dagger"].animating .menu-particle.p-1,
+        .sidebar-menu-toggle[data-icon-type="crime"].animating .menu-particle.p-1 {
             animation: pentagramBloodDrip 1.05s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards !important;
         }
-
-        .sidebar-menu-toggle.dripping .blood-drop.drop-2 {
-            animation: pentagramBloodDrip 1.15s cubic-bezier(0.55, 0.055, 0.675, 0.19) 0.18s forwards !important;
+        .sidebar-menu-toggle[data-icon-type="pentagram"].animating .menu-particle.p-2,
+        .sidebar-menu-toggle[data-icon-type="dagger"].animating .menu-particle.p-2,
+        .sidebar-menu-toggle[data-icon-type="crime"].animating .menu-particle.p-2 {
+            animation: pentagramBloodDrip 1.15s cubic-bezier(0.55, 0.055, 0.675, 0.19) 0.16s forwards !important;
+        }
+        .sidebar-menu-toggle[data-icon-type="pentagram"].animating .menu-particle.p-3,
+        .sidebar-menu-toggle[data-icon-type="dagger"].animating .menu-particle.p-3,
+        .sidebar-menu-toggle[data-icon-type="crime"].animating .menu-particle.p-3 {
+            animation: pentagramBloodDrip 1.1s cubic-bezier(0.55, 0.055, 0.675, 0.19) 0.32s forwards !important;
         }
 
-        .sidebar-menu-toggle.dripping .blood-drop.drop-3 {
-            animation: pentagramBloodDrip 1.1s cubic-bezier(0.55, 0.055, 0.675, 0.19) 0.34s forwards !important;
+        /* Group B: Flying Hearts (.icon-heart) */
+        .sidebar-menu-toggle[data-icon-type="heart"] .menu-particle {
+            top: 40% !important;
+            left: 50% !important;
+            font-size: 11px !important;
+            color: #ff2a6d !important;
+            text-shadow: 0 0 4px rgba(255, 42, 109, 0.8) !important;
+        }
+        .sidebar-menu-toggle[data-icon-type="heart"] .menu-particle.p-2 {
+            color: #ff758f !important;
+            font-size: 9px !important;
+        }
+        .sidebar-menu-toggle[data-icon-type="heart"] .menu-particle.p-3 {
+            color: #ff0055 !important;
+            font-size: 10px !important;
+        }
+        .sidebar-menu-toggle[data-icon-type="heart"] .menu-particle.p-4 {
+            color: #ff99ac !important;
+            font-size: 8px !important;
+        }
+        .sidebar-menu-toggle[data-icon-type="heart"].animating .menu-particle.p-1 {
+            animation: flyParticleLeft 1.1s ease-out forwards !important;
+        }
+        .sidebar-menu-toggle[data-icon-type="heart"].animating .menu-particle.p-2 {
+            animation: flyParticleRight 1.2s ease-out 0.1s forwards !important;
+        }
+        .sidebar-menu-toggle[data-icon-type="heart"].animating .menu-particle.p-3 {
+            animation: flyParticleCenter 1.15s ease-out 0.2s forwards !important;
+        }
+        .sidebar-menu-toggle[data-icon-type="heart"].animating .menu-particle.p-4 {
+            animation: flyParticleFarRight 1.25s ease-out 0.28s forwards !important;
+        }
+
+        /* Group C: All Other Floating Genre Particles */
+        .sidebar-menu-toggle:not([data-icon-type="pentagram"]):not([data-icon-type="dagger"]):not([data-icon-type="crime"]):not([data-icon-type="heart"]) .menu-particle {
+            top: 45% !important;
+            left: 50% !important;
+            font-size: 10px !important;
+            color: #ffd700 !important;
+            text-shadow: 0 0 5px rgba(255, 215, 0, 0.85) !important;
+        }
+        .sidebar-menu-toggle[data-icon-type="skull"] .menu-particle {
+            color: #39ff14 !important;
+            text-shadow: 0 0 5px #00aa00 !important;
+        }
+        .sidebar-menu-toggle[data-icon-type="scifi"] .menu-particle,
+        .sidebar-menu-toggle[data-icon-type="superhero"] .menu-particle,
+        .sidebar-menu-toggle[data-icon-type="mythology"] .menu-particle,
+        .sidebar-menu-toggle[data-icon-type="werewolf"] .menu-particle {
+            color: #00f0ff !important;
+            text-shadow: 0 0 6px #0088ff !important;
+        }
+        .sidebar-menu-toggle[data-icon-type="moon"] .menu-particle,
+        .sidebar-menu-toggle[data-icon-type="psych"] .menu-particle,
+        .sidebar-menu-toggle[data-icon-type="manga"] .menu-particle {
+            color: #e9d5ff !important;
+            text-shadow: 0 0 5px #9333ea !important;
+        }
+        .sidebar-menu-toggle[data-icon-type="vampire"] .menu-particle,
+        .sidebar-menu-toggle[data-icon-type="youtube"] .menu-particle,
+        .sidebar-menu-toggle[data-icon-type="anger"] .menu-particle,
+        .sidebar-menu-toggle[data-icon-type="flame"] .menu-particle {
+            color: #ff3333 !important;
+            text-shadow: 0 0 5px #ff0000 !important;
+        }
+
+        .sidebar-menu-toggle:not([data-icon-type="pentagram"]):not([data-icon-type="dagger"]):not([data-icon-type="crime"]):not([data-icon-type="heart"]).animating .menu-particle.p-1 {
+            animation: flyParticleLeft 1.05s ease-out forwards !important;
+        }
+        .sidebar-menu-toggle:not([data-icon-type="pentagram"]):not([data-icon-type="dagger"]):not([data-icon-type="crime"]):not([data-icon-type="heart"]).animating .menu-particle.p-2 {
+            animation: flyParticleRight 1.15s ease-out 0.12s forwards !important;
+        }
+        .sidebar-menu-toggle:not([data-icon-type="pentagram"]):not([data-icon-type="dagger"]):not([data-icon-type="crime"]):not([data-icon-type="heart"]).animating .menu-particle.p-3 {
+            animation: flyParticleCenter 1.2s ease-out 0.22s forwards !important;
         }
 
         @keyframes pentagramBloodDrip {
@@ -625,12 +849,72 @@ function strangebooks_vc_precedence_and_sidebar_css() {
                 transform: translate(-50%, 26px) scale(0.2);
             }
         }
+
+        @keyframes flyParticleLeft {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, 0) scale(0.4) rotate(0deg);
+            }
+            50% {
+                opacity: 1;
+                transform: translate(-17px, -14px) scale(1.15) rotate(-18deg);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-24px, -28px) scale(0.6) rotate(-30deg);
+            }
+        }
+
+        @keyframes flyParticleRight {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, 0) scale(0.4) rotate(0deg);
+            }
+            50% {
+                opacity: 1;
+                transform: translate(10px, -16px) scale(1.1) rotate(18deg);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(18px, -30px) scale(0.5) rotate(32deg);
+            }
+        }
+
+        @keyframes flyParticleCenter {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, 0) scale(0.4);
+            }
+            50% {
+                opacity: 1;
+                transform: translate(-3px, -20px) scale(1.25);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-5px, -36px) scale(0.5);
+            }
+        }
+
+        @keyframes flyParticleFarRight {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, 0) scale(0.3);
+            }
+            60% {
+                opacity: 0.95;
+                transform: translate(14px, -9px) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(24px, -20px) scale(0.4);
+            }
+        }
     </style>
     <?php
 }
 add_action( 'wp_head', 'strangebooks_vc_precedence_and_sidebar_css', 999 );
 
-/* --- COLLAPSIBLE SIDEBAR MENU (WITH BLOOD DRIP) & WPBAKERY BACKGROUND ENFORCER --- */
+/* --- UNIFIED HEADER + SIDEBAR MENU CONTROLLER WITH 25 GENRE ICONS & ANIMATIONS --- */
 function strangebooks_collapsible_sidebar_menu() {
     $vc_css = strangebooks_get_vc_custom_css();
     if ( ! empty( $vc_css ) ) {
@@ -639,6 +923,185 @@ function strangebooks_collapsible_sidebar_menu() {
     ?>
     <script>
     (function() {
+        const ICON_PRESETS = {
+            pentagram: {
+                glyph: '&#9956;',
+                particles: ['', '', '']
+            },
+            heart: {
+                glyph: '&#9829;',
+                particles: ['&#9829;', '&#10084;', '&#9829;', '&#9825;']
+            },
+            sparkles: {
+                glyph: '&#10022;',
+                particles: ['&#10022;', '&#10023;', '&#9733;']
+            },
+            skull: {
+                glyph: '&#9760;',
+                particles: ['&#10022;', '&#9760;', '&#10022;']
+            },
+            scifi: {
+                glyph: '&#129680;',
+                particles: ['&#10022;', '&#9675;', '&#9733;']
+            },
+            dystopian: {
+                glyph: '&#9762;',
+                particles: ['&#9762;', '&#10022;', '&#9889;']
+            },
+            superhero: {
+                glyph: '&#9889;',
+                particles: ['&#9889;', '&#9733;', '&#9889;']
+            },
+            crime: {
+                glyph: '&#128481;',
+                particles: ['', '', '']
+            },
+            mystery: {
+                glyph: '&#128269;',
+                particles: ['?', '&#10022;', '?']
+            },
+            comedy: {
+                glyph: '&#127917;',
+                particles: ['&#9733;', '&#10022;', '&#9733;']
+            },
+            mythology: {
+                glyph: '&#128305;',
+                particles: ['&#9889;', '&#10022;', '&#9889;']
+            },
+            psych: {
+                glyph: '&#128065;',
+                particles: ['&#9678;', '&#10022;', '&#9678;']
+            },
+            vampire: {
+                glyph: '&#129415;',
+                particles: ['&#129415;', '&#9829;', '&#129415;']
+            },
+            werewolf: {
+                glyph: '&#128058;',
+                particles: ['&#9790;', '&#10022;', '&#9733;']
+            },
+            manga: {
+                glyph: '&#10070;',
+                particles: ['&#10022;', '&#9733;', '&#10022;']
+            },
+            youtube: {
+                glyph: '&#9654;',
+                particles: ['&#9834;', '&#9835;', '&#9834;']
+            },
+            book: {
+                glyph: '&#128214;',
+                particles: ['&#10022;', '&#9733;', '&#10022;']
+            },
+            quill: {
+                glyph: '&#10002;',
+                particles: ['&#10022;', '&#9733;', '&#10022;']
+            },
+            anger: {
+                glyph: '&#128162;',
+                particles: ['&#9889;', '&#128293;', '&#9889;']
+            },
+            lemon: {
+                glyph: '&#127819;',
+                particles: ['&#10022;', '&#9733;', '&#10022;']
+            },
+            crown: {
+                glyph: '&#9819;',
+                particles: ['&#9819;', '&#10022;', '&#9733;']
+            },
+            paw: {
+                glyph: '&#128062;',
+                particles: ['&#128062;', '&#10022;', '&#128062;']
+            },
+            flame: {
+                glyph: '&#128293;',
+                particles: ['&#9679;', '&#10022;', '&#9679;']
+            },
+            moon: {
+                glyph: '&#9790;',
+                particles: ['&#10022;', '&#9733;', '&#10023;']
+            },
+            dagger: {
+                glyph: '&#9876;',
+                particles: ['', '', '']
+            }
+        };
+
+        function getExplicitIconClass(li) {
+            if (!li || !li.classList) return null;
+            if (li.classList.contains('icon-heart') || li.classList.contains('icon-romance')) return 'heart';
+            if (li.classList.contains('icon-sparkles') || li.classList.contains('icon-star') || li.classList.contains('icon-magic') || li.classList.contains('icon-fantasy')) return 'sparkles';
+            if (li.classList.contains('icon-skull') || li.classList.contains('icon-horror') || li.classList.contains('icon-thriller')) return 'skull';
+            if (li.classList.contains('icon-scifi') || li.classList.contains('icon-alien') || li.classList.contains('icon-planet')) return 'scifi';
+            if (li.classList.contains('icon-dystopian') || li.classList.contains('icon-hazard')) return 'dystopian';
+            if (li.classList.contains('icon-superhero') || li.classList.contains('icon-bolt') || li.classList.contains('icon-lightning')) return 'superhero';
+            if (li.classList.contains('icon-crime') || li.classList.contains('icon-blood')) return 'crime';
+            if (li.classList.contains('icon-mystery') || li.classList.contains('icon-clue')) return 'mystery';
+            if (li.classList.contains('icon-comedy')) return 'comedy';
+            if (li.classList.contains('icon-mythology') || li.classList.contains('icon-trident')) return 'mythology';
+            if (li.classList.contains('icon-psych') || li.classList.contains('icon-eye')) return 'psych';
+            if (li.classList.contains('icon-vampire') || li.classList.contains('icon-bat')) return 'vampire';
+            if (li.classList.contains('icon-werewolf') || li.classList.contains('icon-wolf')) return 'werewolf';
+            if (li.classList.contains('icon-manga') || li.classList.contains('icon-isekai')) return 'manga';
+            if (li.classList.contains('icon-youtube') || li.classList.contains('icon-audio')) return 'youtube';
+            if (li.classList.contains('icon-book')) return 'book';
+            if (li.classList.contains('icon-quill') || li.classList.contains('icon-blog') || li.classList.contains('icon-author')) return 'quill';
+            if (li.classList.contains('icon-anger')) return 'anger';
+            if (li.classList.contains('icon-lemon')) return 'lemon';
+            if (li.classList.contains('icon-crown') || li.classList.contains('icon-royal')) return 'crown';
+            if (li.classList.contains('icon-paw') || li.classList.contains('icon-animal')) return 'paw';
+            if (li.classList.contains('icon-flame') || li.classList.contains('icon-fire')) return 'flame';
+            if (li.classList.contains('icon-moon')) return 'moon';
+            if (li.classList.contains('icon-dagger') || li.classList.contains('icon-sword')) return 'dagger';
+            if (li.classList.contains('icon-pentagram')) return 'pentagram';
+            return null;
+        }
+
+        function getLinkLabelWithoutToggle(link) {
+            if (!link) return '';
+            const clone = link.cloneNode(true);
+            const toggles = clone.querySelectorAll('.sidebar-menu-toggle');
+            toggles.forEach(function(t) { t.remove(); });
+            return (clone.textContent || '').toLowerCase();
+        }
+
+        function matchLabelToIcon(label) {
+            if (!label) return null;
+            if (label.indexOf('romance') !== -1 || label.indexOf('romantasy') !== -1 || label.indexOf('boy love') !== -1 || label.indexOf('girl love') !== -1 || label.indexOf('harem') !== -1) return 'heart';
+            if (label.indexOf('historical') !== -1 || label.indexOf('royal') !== -1 || label.indexOf('princess') !== -1) return 'crown';
+            if (label.indexOf('fantasy') !== -1 || label.indexOf('fairy') !== -1 || label.indexOf('magic') !== -1 || label.indexOf('merlin') !== -1 || label.indexOf('harry potter') !== -1 || label.indexOf('crescent city') !== -1) return 'sparkles';
+            if (label.indexOf('thriller') !== -1 || label.indexOf('horror') !== -1 || label.indexOf('crimson peak') !== -1 || label.indexOf('zombie') !== -1) return 'skull';
+            if (label.indexOf('dystopian') !== -1 || label.indexOf('hunger games') !== -1 || label.indexOf('apocalyp') !== -1) return 'dystopian';
+            if (label.indexOf('superhero') !== -1 || label.indexOf('marvel') !== -1) return 'superhero';
+            if (label.indexOf('sci-fi') !== -1 || label.indexOf('scifi') !== -1 || label.indexOf('science fiction') !== -1 || label.indexOf('red dwarf') !== -1 || label.indexOf('space') !== -1) return 'scifi';
+            if (label.indexOf('crime') !== -1 || label.indexOf('murder') !== -1) return 'crime';
+            if (label.indexOf('mystery') !== -1 || label.indexOf('sherlock') !== -1 || label.indexOf('detective') !== -1) return 'mystery';
+            if (label.indexOf('comedy') !== -1 || label.indexOf('humour') !== -1) return 'comedy';
+            if (label.indexOf('mythology') !== -1) return 'mythology';
+            if (label.indexOf('psychological') !== -1) return 'psych';
+            if (label.indexOf('vampire') !== -1 || label.indexOf('goth') !== -1) return 'vampire';
+            if (label.indexOf('werewolf') !== -1 || label.indexOf('wolf') !== -1 || label.indexOf('shifter') !== -1 || label.indexOf('beast') !== -1) return 'werewolf';
+            if (label.indexOf('manga') !== -1 || label.indexOf('isekai') !== -1 || label.indexOf('anime') !== -1) return 'manga';
+            if (label.indexOf('youtube') !== -1 || label.indexOf('audiobook') !== -1) return 'youtube';
+            if (label.indexOf('aggression') !== -1 || label.indexOf('frustration') !== -1) return 'anger';
+            if (label.indexOf('lemon') !== -1) return 'lemon';
+            if (label.indexOf('articulates') !== -1 || label.indexOf('poetic') !== -1 || label.indexOf('author') !== -1 || label.indexOf('blog') !== -1) return 'quill';
+            if (label.indexOf('book recommendation') !== -1 || label.indexOf('short stories') !== -1) return 'book';
+            if (label.indexOf('adventurer') !== -1 || label.indexOf('action') !== -1) return 'dagger';
+            if (label.indexOf('animal') !== -1 || label.indexOf('cat') !== -1 || label.indexOf('dog') !== -1) return 'paw';
+            return null;
+        }
+
+        function detectIconType(li, link) {
+            const explicit = getExplicitIconClass(li);
+            if (explicit) return explicit;
+
+            const label = getLinkLabelWithoutToggle(link);
+            const matched = matchLabelToIcon(label);
+            if (matched) return matched;
+
+            return 'pentagram';
+        }
+
         function applyVcCustomInlineStyles() {
             const styleTags = document.querySelectorAll('#strangebooks-vc-custom-css-footer, #strangebooks-vc-custom-css-head, style[data-type="vc_shortcodes-custom-css"]');
             styleTags.forEach(function(tag) {
@@ -678,46 +1141,69 @@ function strangebooks_collapsible_sidebar_menu() {
             return li.querySelector('a');
         }
 
-        function triggerBloodDrip(toggleBtn) {
+        function triggerIconAnimation(toggleBtn) {
             if (!toggleBtn) return;
-            toggleBtn.classList.remove('dripping');
-            // Force reflow so the animation restarts cleanly on every click
+            toggleBtn.classList.remove('animating');
             void toggleBtn.offsetWidth;
-            toggleBtn.classList.add('dripping');
-            setTimeout(function() {
-                toggleBtn.classList.remove('dripping');
+            toggleBtn.classList.add('animating');
+            if (toggleBtn._animTimer) {
+                clearTimeout(toggleBtn._animTimer);
+            }
+            toggleBtn._animTimer = setTimeout(function() {
+                toggleBtn.classList.remove('animating');
             }, 1600);
         }
 
-        function initSidebarMenus() {
-            const menuContainers = document.querySelectorAll('.vc_wp_custommenu, .wpb_widgetised_column, .site-main .widget_nav_menu');
+        function buildToggleButton(iconType, hasSubMenu) {
+            const preset = ICON_PRESETS[iconType] || ICON_PRESETS.pentagram;
+            const toggleBtn = document.createElement('span');
+            toggleBtn.className = 'sidebar-menu-toggle';
+            toggleBtn.setAttribute('data-icon-type', iconType);
+            toggleBtn.setAttribute('title', hasSubMenu ? 'Toggle Submenu' : 'Icon Effect');
 
-            menuContainers.forEach(function(container) {
+            let particlesHtml = '';
+            for (let i = 0; i < preset.particles.length; i++) {
+                particlesHtml += '<span class="menu-particle p-' + (i + 1) + '">' + preset.particles[i] + '</span>';
+            }
+
+            toggleBtn.innerHTML = '<span class="sidebar-icon-glyph">' + preset.glyph + '</span>' + particlesHtml;
+            return toggleBtn;
+        }
+
+        function initAllMenus() {
+            // 1. Sidebar Menus (.vc_wp_custommenu, .wpb_widgetised_column, .widget_nav_menu)
+            const sidebarContainers = document.querySelectorAll('.vc_wp_custommenu, .wpb_widgetised_column, .site-main .widget_nav_menu');
+            sidebarContainers.forEach(function(container) {
                 const allItems = container.querySelectorAll('li');
-
                 allItems.forEach(function(item) {
                     const subMenu = findSubMenu(item);
                     const link = findDirectLink(item);
+                    const explicitIcon = getExplicitIconClass(item);
+                    const autoMatched = matchLabelToIcon(getLinkLabelWithoutToggle(link));
 
-                    if (subMenu && link) {
-                        item.classList.add('has-collapsible-sub');
-
-                        // Inject Pentagram + Blood Drops if not already initialized
+                    if (link && (subMenu || explicitIcon || autoMatched)) {
+                        if (subMenu) {
+                            item.classList.add('has-collapsible-sub');
+                        }
+                        const iconType = detectIconType(item, link);
                         let toggleBtn = link.querySelector('.sidebar-menu-toggle');
-                        if (!toggleBtn) {
-                            toggleBtn = document.createElement('span');
-                            toggleBtn.className = 'sidebar-menu-toggle';
-                            toggleBtn.innerHTML = '<span class="sidebar-pentagram-glyph">&#9956;</span>' +
-                                '<span class="blood-drop drop-1"></span>' +
-                                '<span class="blood-drop drop-2"></span>' +
-                                '<span class="blood-drop drop-3"></span>';
+                        if (!toggleBtn || toggleBtn.getAttribute('data-icon-type') !== iconType) {
+                            if (toggleBtn) toggleBtn.remove();
+                            toggleBtn = buildToggleButton(iconType, !!subMenu);
                             link.appendChild(toggleBtn);
                         }
 
-                        // Auto-expand if viewing an active child page on initial load
-                        if (!item.hasAttribute('data-menu-init')) {
+                        if (!item.hasAttribute('data-hover-init')) {
+                            item.setAttribute('data-hover-init', '1');
+                            item.addEventListener('mouseenter', function() {
+                                const btn = link.querySelector('.sidebar-menu-toggle');
+                                triggerIconAnimation(btn);
+                            });
+                        }
+
+                        if (subMenu && !item.hasAttribute('data-menu-init')) {
                             item.setAttribute('data-menu-init', '1');
-                            if (item.classList.contains('current-menu-parent') || item.classList.contains('current-menu-ancestor')) {
+                            if (item.classList.contains('current-menu-parent') || item.classList.contains('current-menu-ancestor') || item.classList.contains('current-menu-item')) {
                                 item.classList.add('open');
                                 subMenu.style.setProperty('display', 'block', 'important');
                             } else {
@@ -727,40 +1213,107 @@ function strangebooks_collapsible_sidebar_menu() {
                     }
                 });
             });
+
+            // 2. Main Header Menu (.main-navigation)
+            const headerContainers = document.querySelectorAll('.main-navigation');
+            headerContainers.forEach(function(nav) {
+                const allHeaderItems = nav.querySelectorAll('li');
+                allHeaderItems.forEach(function(item) {
+                    const subMenu = findSubMenu(item);
+                    const link = findDirectLink(item);
+                    const explicitIcon = getExplicitIconClass(item);
+                    const autoMatched = matchLabelToIcon(getLinkLabelWithoutToggle(link));
+
+                    if (link && (subMenu || explicitIcon || autoMatched)) {
+                        // Top-level header items default to pentagram unless explicitly overridden with an icon-* class
+                        const isTopLevelHeader = item.parentElement && item.parentElement.id === 'primary-menu';
+                        const iconType = (isTopLevelHeader && !explicitIcon) ? 'pentagram' : detectIconType(item, link);
+
+                        let toggleBtn = link.querySelector('.sidebar-menu-toggle');
+                        if (!toggleBtn || toggleBtn.getAttribute('data-icon-type') !== iconType) {
+                            if (toggleBtn) toggleBtn.remove();
+                            toggleBtn = buildToggleButton(iconType, !!subMenu);
+                            link.appendChild(toggleBtn);
+                        }
+
+                        if (!item.hasAttribute('data-header-hover-init')) {
+                            item.setAttribute('data-header-hover-init', '1');
+                            item.addEventListener('mouseenter', function() {
+                                const btn = link.querySelector('.sidebar-menu-toggle');
+                                triggerIconAnimation(btn);
+                            });
+                        }
+                    }
+                });
+            });
         }
 
-        // Use capture-phase document delegation so nothing can block the click
+        // Capture-phase delegation for both Header Menu and Sidebar Menus
         document.addEventListener('click', function(e) {
-            const sidebarContainer = e.target.closest('.vc_wp_custommenu, .wpb_widgetised_column, .site-main .widget_nav_menu');
-            if (!sidebarContainer) return;
+            const menuContainer = e.target.closest('.vc_wp_custommenu, .wpb_widgetised_column, .site-main .widget_nav_menu, .main-navigation');
+            if (!menuContainer) return;
 
             const clickedLink = e.target.closest('a');
-            if (!clickedLink || !sidebarContainer.contains(clickedLink)) return;
+            if (!clickedLink || !menuContainer.contains(clickedLink)) return;
 
             const parentLi = clickedLink.closest('li');
             if (!parentLi) return;
 
+            const isHeaderMenu = menuContainer.classList.contains('main-navigation');
             const subMenu = findSubMenu(parentLi);
-            if (!subMenu) return; // Leaf link without children -> allow normal navigation
+            const clickedToggle = e.target.closest('.sidebar-menu-toggle');
+            const toggleBtn = clickedLink.querySelector('.sidebar-menu-toggle');
 
-            // This item has a sub-menu: intercept click, toggle dropdown, and drip blood
-            e.preventDefault();
-            e.stopPropagation();
-
-            const isOpen = parentLi.classList.toggle('open');
-            if (isOpen) {
-                subMenu.style.setProperty('display', 'block', 'important');
-            } else {
-                subMenu.style.setProperty('display', 'none', 'important');
+            // Case 1: Leaf item without a sub-menu
+            if (!subMenu) {
+                if (clickedToggle) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    triggerIconAnimation(toggleBtn);
+                } else if (toggleBtn) {
+                    triggerIconAnimation(toggleBtn);
+                }
+                return;
             }
 
-            const toggleBtn = clickedLink.querySelector('.sidebar-menu-toggle');
-            triggerBloodDrip(toggleBtn);
+            // Case 2: Item in the Top Header Menu (.main-navigation)
+            if (isHeaderMenu) {
+                const rawHref = (clickedLink.getAttribute('href') || '').trim();
+                const isPlaceholderLink = (!rawHref || rawHref === '#' || rawHref === 'javascript:void(0);');
+
+                if (clickedToggle || isPlaceholderLink) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    parentLi.classList.toggle('open');
+                    triggerIconAnimation(toggleBtn);
+                } else if (toggleBtn) {
+                    triggerIconAnimation(toggleBtn);
+                }
+                return;
+            }
+
+            // Case 3: Parent item with a sub-menu in the Sidebar
+            const rawHref = (clickedLink.getAttribute('href') || '').trim();
+            const isPlaceholderLink = (!rawHref || rawHref === '#' || rawHref === 'javascript:void(0);');
+
+            if (clickedToggle || isPlaceholderLink) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const isOpen = parentLi.classList.toggle('open');
+                if (isOpen) {
+                    subMenu.style.setProperty('display', 'block', 'important');
+                } else {
+                    subMenu.style.setProperty('display', 'none', 'important');
+                }
+
+                triggerIconAnimation(toggleBtn);
+            }
         }, true);
 
         function bootAll() {
             applyVcCustomInlineStyles();
-            initSidebarMenus();
+            initAllMenus();
         }
 
         if (document.readyState === 'loading') {
@@ -772,7 +1325,7 @@ function strangebooks_collapsible_sidebar_menu() {
         if (window.MutationObserver) {
             const observer = new MutationObserver(function() {
                 applyVcCustomInlineStyles();
-                initSidebarMenus();
+                initAllMenus();
             });
             observer.observe(document.body, { childList: true, subtree: true });
         }
