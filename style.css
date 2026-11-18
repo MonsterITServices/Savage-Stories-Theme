@@ -3,7 +3,7 @@
 Theme Name: Strange Books Custom
 Author: Monster IT Services Ltd
 Description: A lightweight, mobile-responsive theme with customizable header, footer, and a grid-based main content area.
-Version: 2.1
+Version: 2.2
 */
 
 /* Base Styles */
@@ -246,4 +246,137 @@ h1:not(.vc_custom_heading):not([style*="color"]) {
         flex-direction: column;
         text-align: center;
     }
+}
+
+/* --- COMMENTS SECTION STYLING --- */
+.comments-area {
+    margin-top: 50px;
+    padding: 30px;
+    background-color: #111111;
+    color: #ffffff;
+    border: 1px solid #222222;
+    border-radius: 4px;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 15px;
+}
+.comments-title,
+.comment-reply-title {
+    font-size: 22px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #ffffff !important;
+    border-bottom: 1px solid #333333;
+    padding-bottom: 12px;
+    margin-top: 0;
+    margin-bottom: 25px;
+}
+.comment-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 30px 0;
+}
+.comment-list .comment {
+    border-bottom: 1px solid #262626;
+    padding: 18px 0;
+}
+.comment-list .children {
+    list-style: none;
+    padding-left: 28px;
+    margin-top: 15px;
+    border-left: 2px solid #8b0000;
+}
+.comment-author.vcard {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+    color: #ffffff;
+    margin-bottom: 6px;
+}
+.comment-author img.avatar {
+    border-radius: 50%;
+    border: 1px solid #444444;
+}
+.comment-metadata {
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+.comment-metadata a,
+.comment-author a,
+.logged-in-as a,
+#cancel-comment-reply-link {
+    color: #bbbbbb;
+    text-decoration: none;
+}
+.comment-metadata a:hover,
+.comment-author a:hover,
+.logged-in-as a:hover,
+#cancel-comment-reply-link:hover {
+    color: #ff3333;
+}
+.comment-content p {
+    margin: 8px 0;
+    line-height: 1.6;
+    color: #e6e6e6;
+}
+.reply a.comment-reply-link {
+    display: inline-block;
+    background-color: #222222;
+    color: #ffffff;
+    padding: 4px 10px;
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 2px;
+    margin-top: 6px;
+}
+.reply a.comment-reply-link:hover {
+    background-color: #8b0000;
+}
+.comment-form label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #dddddd;
+}
+.comment-form input[type="text"],
+.comment-form input[type="email"],
+.comment-form input[type="url"],
+.comment-form textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background-color: #1c1c1c;
+    border: 1px solid #333333;
+    color: #ffffff;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 15px;
+    border-radius: 3px;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+}
+.comment-form input:focus,
+.comment-form textarea:focus {
+    outline: none;
+    border-color: #8b0000;
+}
+.comment-form-cookies-consent {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+.comment-form-cookies-consent label {
+    display: inline;
+    margin: 0;
+    text-transform: none;
+    font-size: 13px;
+}
+.comment-submit-btn {
+    background-color: #8b0000 !important;
+}
+.comment-submit-btn:hover {
+    background-color: #a52a2a !important;
 }

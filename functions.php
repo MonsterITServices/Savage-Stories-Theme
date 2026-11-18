@@ -2,6 +2,7 @@
 function strangebooks_setup() {
     add_theme_support( 'title-tag' );
     add_theme_support( 'post-thumbnails' );
+    add_theme_support( 'html5', array( 'comment-list', 'comment-form', 'search-form', 'gallery', 'caption' ) );
     register_nav_menus( array(
         'primary' => __( 'Primary Header Menu', 'strangebooks' ),
         'footer'  => __( 'Footer Menu', 'strangebooks' ),
@@ -42,8 +43,13 @@ function strangebooks_scripts() {
         wp_enqueue_style( 'js_composer_front' );
     }
     $style_path  = get_stylesheet_directory() . '/style.css';
-    $css_version = file_exists( $style_path ) ? filemtime( $style_path ) : '2.1';
+    $css_version = file_exists( $style_path ) ? filemtime( $style_path ) : '2.2';
     wp_enqueue_style( 'strangebooks-style', get_stylesheet_uri(), array(), $css_version );
+
+    // Enable threaded comment reply script when viewing a post or book with comments open
+    if ( is_singular() && comments_open() && get_option( 'thread_comments' ) ) {
+        wp_enqueue_script( 'comment-reply' );
+    }
 }
 add_action( 'wp_enqueue_scripts', 'strangebooks_scripts' );
 
@@ -75,7 +81,7 @@ function strangebooks_allow_kses_background_styles( $styles ) {
 }
 add_filter( 'safe_style_css', 'strangebooks_allow_kses_background_styles', 99 );
 
-/* --- 1. REGISTER 'BOOKS' CUSTOM POST TYPE --- */
+/* --- 1. REGISTER 'BOOKS' CUSTOM POST TYPE (WITH COMMENTS SUPPORT) --- */
 function strangebooks_register_books_cpt() {
     register_post_type( 'book', array(
         'labels'      => array(
@@ -87,7 +93,7 @@ function strangebooks_register_books_cpt() {
         'public'      => true,
         'has_archive' => true,
         'menu_icon'   => 'dashicons-book',
-        'supports'    => array( 'title', 'editor', 'thumbnail', 'excerpt' ),
+        'supports'    => array( 'title', 'editor', 'thumbnail', 'excerpt', 'comments' ),
         'rewrite'     => array( 'slug' => 'books' ),
     ) );
 }
@@ -210,8 +216,8 @@ function strangebooks_extract_chapter_title_from_chunk( $raw_content, $fallback_
         }
     }
 
-    // 4. Plain-text paragraph starting directly with "Chapter X: ..."
-    if ( preg_match_all( '/(?:<p[^>]*>|\])\s*((?:chapter|prologue|epilogue)\s+\d+\s*[:\-–—]\s*[^<\[\r\n]{1,80})/i', $raw_content, $p_matches ) ) {
+    // 4. Plain-text paragraph starting directly with "Chapter X: ..." (Fixed Unicode dashes)
+    if ( preg_match_all( '/(?:<p[^>]*>|\])\s*((?:chapter|prologue|epilogue)\s+\d+\s*[:\-\x{2013}\x{2014}]\s*[^<\[\r\n]{1,80})/iu', $raw_content, $p_matches ) ) {
         foreach ( $p_matches[1] as $match ) {
             $cleaned = trim( wp_strip_all_tags( html_entity_decode( $match, ENT_QUOTES | ENT_XML1, 'UTF-8' ) ) );
             if ( ! empty( $cleaned ) ) {
